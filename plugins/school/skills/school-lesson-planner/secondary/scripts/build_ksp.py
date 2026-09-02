@@ -1,0 +1,995 @@
+#!/usr/bin/env python3
+"""Build and structurally audit a Kazakhstan KSP DOCX from validated JSON."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import tempfile
+import zipfile
+from copy import deepcopy
+from pathlib import Path
+from typing import Any, Iterable
+
+from docx import Document
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Pt
+from lxml import etree
+
+
+SKILL_DIR = Path(__file__).resolve().parent.parent
+TEMPLATES = {
+    "kk": SKILL_DIR / "assets" / "ksp-template-kk.docx",
+    "ru": SKILL_DIR / "assets" / "ksp-template-ru.docx",
+    "en": SKILL_DIR / "assets" / "ksp-template-en.docx",
+}
+LANGUAGE_ALIASES = {
+    "kk": "kk", "kz": "kk", "kazakh": "kk", "қазақ": "kk", "қазақша": "kk",
+    "ru": "ru", "russian": "ru", "русский": "ru", "рус": "ru",
+    "en": "en", "english": "en", "английский": "en",
+}
+LABELS = {
+    "kk": {
+        "organization": "Білім беру ұйымының атауы: ",
+        "minute": "мин",
+        "appendix": "Әдістемелік қосымша",
+        "goal_analysis": "Оқу мақсаттарын әдістемелік талдау",
+        "knowledge_skills_analysis": "Оқу мақсаты мен сабақ тақырыбы арқылы дамитын білім мен дағдылар",
+        "methodology_application": "Таңдалған әдістемені сабақта қолдану",
+        "reflection_use": "Алдыңғы сабақ рефлексиясын пайдалану",
+        "model_rationale": "Сабақ моделін таңдау негіздемесі",
+        "term_explanations": "Терминдерге қысқаша түсініктеме",
+        "differentiation": "Саралау және инклюзивті дизайн",
+        "formative_assessment": "Қалыптастырушы бағалау логикасы",
+        "alternatives": "Балама және резервтік тапсырмалар",
+        "external_resources": "Дереккөздер",
+        "professional_notice": "Маңызды ескерту",
+        "professional_notice_text": "Құрметті әріптес, назар аударыңыз, сабақ жоспары және оның әдістемелік қосымшасы ұсыныс ретінде құрастырылды. Құрастырылған оқу материалдары педагог тарапынан міндетті түрде тексеруді талап етеді. Жасанды интеллект педагогикалық шешімді алмастыра алмайтындығын еске саламыз.",
+    },
+    "ru": {
+        "organization": "Наименование организации образования: ",
+        "minute": "мин",
+        "appendix": "Методическое приложение",
+        "goal_analysis": "Методический анализ целей обучения",
+        "knowledge_skills_analysis": "Знания и навыки, реализуемые через цель обучения и тему урока",
+        "methodology_application": "Применение выбранной методики в уроке",
+        "reflection_use": "Использование рефлексии предыдущего урока",
+        "model_rationale": "Обоснование модели урока",
+        "term_explanations": "Краткое пояснение терминов",
+        "differentiation": "Дифференциация и инклюзивный дизайн",
+        "formative_assessment": "Логика формативного оценивания",
+        "alternatives": "Альтернативные и резервные задания",
+        "external_resources": "Источники",
+        "professional_notice": "Важное примечание",
+        "professional_notice_text": "Уважаемый коллега, обратите внимание: план урока и его методическое приложение составлены в качестве рекомендации. Разработанные учебные материалы требуют обязательной проверки педагогом. Искусственный интеллект не может заменить педагогическое решение.",
+    },
+    "en": {
+        "organization": "Name of educational organization: ",
+        "minute": "min",
+        "appendix": "Methodological appendix",
+        "goal_analysis": "Methodological analysis of learning objectives",
+        "knowledge_skills_analysis": "Knowledge and skills developed through the learning objective and lesson topic",
+        "methodology_application": "Application of the selected methodology",
+        "reflection_use": "Use of previous-lesson reflection",
+        "model_rationale": "Rationale for the lesson model",
+        "term_explanations": "Brief explanation of terms",
+        "differentiation": "Differentiation and inclusive design",
+        "formative_assessment": "Formative-assessment logic",
+        "alternatives": "Alternative and reserve tasks",
+        "external_resources": "Sources",
+        "professional_notice": "Important notice",
+        "professional_notice_text": "Dear colleague, please note: the lesson plan and its methodological appendix have been prepared as recommendations. The developed learning materials must be reviewed by the teacher. Artificial intelligence cannot replace professional pedagogical judgment.",
+    },
+}
+APPENDIX_ORDER = (
+    "goal_analysis", "knowledge_skills_analysis", "methodology_application",
+    "reflection_use", "model_rationale", "differentiation",
+    "formative_assessment", "alternatives", "external_resources",
+)
+APPENDIX_REQUIRED = {
+    "goal_analysis", "knowledge_skills_analysis", "methodology_application",
+    "model_rationale", "differentiation",
+    "formative_assessment", "alternatives", "audit_summary",
+}
+LESSON_DURATION_MINUTES = 40
+REQUIRED_ROOT = {
+    "intake_verification", "language", "lesson_count", "subject",
+    "grade", "section", "topic", "class_size", "teacher_experience",
+    "qualification_category", "class_characteristics",
+    "learning_objectives", "lesson_objectives", "assessment_criteria",
+    "stages", "methodological_appendix",
+}
+REQUIRED_INTAKE_FIELDS = {
+    "subject", "grade", "language", "section", "topic", "learning_objectives",
+    "lesson_count", "class_size", "teacher_experience",
+    "qualification_category", "class_characteristics",
+}
+REQUIRED_STAGE = {
+    "name", "minutes", "teacher_actions", "learner_actions", "assessment", "resources",
+}
+OBJECTIVE_CODE = re.compile(r"(?<!\d)\d{1,2}(?:\.\d+){2,}(?!\d)")
+BANNED = (
+    "жетістік критерийлері", "критерии успеха", "success criteria",
+    "күтілетін нәтиже", "ожидаемый результат", "expected result",
+)
+OLD_ENDING_TERMS = ("шығу билеті", "выходной билет")
+DEPRECATED_ASSESSMENT_NOTES = (
+    "ескерту: «бағалау критерийлері»",
+    "примечание: «критерии оценивания»",
+    "note: “assessment criteria”",
+    'note: "assessment criteria"',
+)
+PRACTICAL_SUBJECT = re.compile(
+    r"(?:хими|chemistr|химия|биологи|biology|биология|физик|physics|физика|"
+    r"жаратылыстану|естествозн|natural\s+science|көркем\s+еңбек|"
+    r"художественн(?:ый|ого)\s+труд|arts?\s*(?:and|&)\s*crafts?)",
+    re.IGNORECASE,
+)
+KNOWLEDGE_SKILL_PREFIXES = {
+    "kk": (
+        "ПӘНДІК МАЗМҰН:",
+        "ФАКТІЛІК БІЛІМ:",
+        "ПӘНДІК ДАҒДЫЛАР:",
+        "ТАНЫМДЫҚ ДАҒДЫЛАР:",
+        "ҚОРЫТЫНДЫ ОҚУ ДӘЛЕЛІ:",
+    ),
+    "ru": (
+        "ПРЕДМЕТНОЕ СОДЕРЖАНИЕ:",
+        "ФАКТИЧЕСКИЕ ЗНАНИЯ:",
+        "ПРЕДМЕТНЫЕ НАВЫКИ:",
+        "ПОЗНАВАТЕЛЬНЫЕ НАВЫКИ:",
+        "ИТОГОВОЕ ДОКАЗАТЕЛЬСТВО ОБУЧЕНИЯ:",
+    ),
+    "en": (
+        "SUBJECT CONTENT:",
+        "FACTUAL KNOWLEDGE:",
+        "SUBJECT-SPECIFIC SKILLS:",
+        "COGNITIVE SKILLS:",
+        "FINAL EVIDENCE OF LEARNING:",
+    ),
+}
+REMOVED_KNOWLEDGE_SKILL_TERMS = (
+    "тұжырымдамалық білім", "процедуралық білім", "метатанымдық білім",
+    "метакогнитивтік білім", "қосымша дағдылар",
+    "концептуальные знания", "концептуальное знание",
+    "процедурные знания", "процедурное знание",
+    "метакогнитивные знания", "метакогнитивное знание",
+    "дополнительные навыки", "conceptual knowledge", "procedural knowledge",
+    "metacognitive knowledge", "additional skills",
+)
+SPECIALIZED_METHOD_PATTERNS = {
+    "UbD": re.compile(r"(?<![\w-])(?:ubd|understanding by design)(?![\w-])", re.IGNORECASE),
+    "UDL": re.compile(r"(?<![\w-])(?:udl|universal design for learning)(?![\w-])", re.IGNORECASE),
+    "Visible Learning": re.compile(r"(?<![\w-])visible learning(?![\w-])", re.IGNORECASE),
+    "Explicit Instruction": re.compile(r"(?<![\w-])explicit instruction(?![\w-])", re.IGNORECASE),
+    "Wiliam": re.compile(r"(?<![\w-])wiliam(?![\w-])", re.IGNORECASE),
+    "Marzano": re.compile(r"(?<![\w-])marzano(?![\w-])", re.IGNORECASE),
+    "Tomlinson": re.compile(r"(?<![\w-])tomlinson(?![\w-])", re.IGNORECASE),
+    "Archer-Hughes": re.compile(r"(?<![\w-])archer[–—-]hughes(?![\w-])", re.IGNORECASE),
+    "Hattie": re.compile(r"(?<![\w-])hattie(?![\w-])", re.IGNORECASE),
+    "Agarwal-Bain": re.compile(r"(?<![\w-])agarwal[–—-]bain(?![\w-])", re.IGNORECASE),
+}
+TERM_STATUS_MARKERS = {
+    "kk": "әдістемелік ұсыныс",
+    "ru": "методическая рекомендация",
+    "en": "methodological recommendation",
+}
+KK_SOURCE_STATUS_GOAL = "Оқу мақсаттары — мұғалім ұсынған үлгіде граматикалық ерекшеліктері сақталды."
+KK_SOURCE_STATUS_EXPLICIT = "Anita L. Archer және Charles A. Hughes еңбегіндегі Explicit Instruction қағидалары — осы сабаққа бейімделген әдістемелік ұсыныс."
+KK_SOURCE_STATUS_FORM = "ҚМЖ нысаны — плагиннің 15.08.2026 күні жаңартылған №130 бұйрық жөніндегі нормативтік анықтамасына сүйеніп рәсімделді."
+RU_SOURCE_STATUS_GOAL = "Цели обучения использованы в формулировке, предоставленной учителем, с сохранением грамматических особенностей."
+RU_SOURCE_STATUS_EXPLICIT = "Принципы Explicit Instruction из работы Anita L. Archer и Charles A. Hughes адаптированы для данного урока и представлены как методическая рекомендация."
+RU_SOURCE_STATUS_FORM = "Форма КСП оформлена на основании нормативной справки плагина о приказе №130, обновлённой 15.08.2026."
+EN_SOURCE_STATUS_GOAL = "The learning objectives are presented in the wording provided by the teacher, with their grammatical features preserved."
+EN_SOURCE_STATUS_EXPLICIT = "The Explicit Instruction principles described by Anita L. Archer and Charles A. Hughes have been adapted for this lesson as a methodological recommendation."
+EN_SOURCE_STATUS_FORM = "The lesson-plan form was prepared using the plugin's regulatory reference for Order No. 130, updated on August 15, 2026."
+LESSON_WIDTHS_DXA = (1656, 2880, 2448, 1728, 1584)
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+NS = {"w": W_NS}
+
+
+class KSPError(ValueError):
+    pass
+
+
+def nonempty(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, tuple)):
+        return bool(value) and all(nonempty(item) for item in value)
+    return True
+
+
+def content_items(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    if isinstance(value, list):
+        result = []
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                result.append(item.strip())
+            else:
+                raise KSPError("Text lists may contain only non-empty strings.")
+        return result
+    raise KSPError("Text content must be a string or a list of strings.")
+
+
+def bullet_items(value: Any, field_name: str) -> list[str]:
+    """Require one clean JSON array item for every Word bullet."""
+    if not isinstance(value, list):
+        raise KSPError(
+            f"{field_name} must be a JSON array with one separate item per bullet."
+        )
+    items = content_items(value)
+    for item in items:
+        if "\n" in item or "\r" in item:
+            raise KSPError(
+                f"{field_name} items must not contain line breaks; "
+                "put every objective or criterion in a separate array item."
+            )
+        if re.match(r"^\s*(?:[•◦▪‣⁃*-]|\d+[.)])\s+", item):
+            raise KSPError(
+                f"{field_name} items must not contain typed bullet or number markers; "
+                "the DOCX builder adds real Word bullets."
+            )
+    return items
+
+
+def normalized_language(value: Any) -> str:
+    key = str(value or "").strip().casefold()
+    if key not in LANGUAGE_ALIASES:
+        raise KSPError("language must be kk, ru, or en.")
+    return LANGUAGE_ALIASES[key]
+
+
+def normalized_field_name(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value).replace("_", " ").replace("-", " ").casefold()).strip()
+
+
+def find_banned_field_names(value: Any) -> list[str]:
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = normalized_field_name(key)
+            if any(term in normalized for term in BANNED):
+                found.append(str(key))
+            found.extend(find_banned_field_names(child))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(find_banned_field_names(child))
+    return found
+
+
+def validate_intake(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise KSPError("intake_verification must be an object.")
+    if value.get("confirmed_by_user") is not True:
+        raise KSPError("The mandatory teacher interview must be explicitly confirmed by the user.")
+    source_summary = value.get("source_summary")
+    if not isinstance(source_summary, str) or not source_summary.strip():
+        raise KSPError("intake_verification.source_summary must identify the user-provided source.")
+    fields = value.get("confirmed_fields")
+    if not isinstance(fields, list) or not all(isinstance(item, str) for item in fields):
+        raise KSPError("intake_verification.confirmed_fields must be a list of field names.")
+    normalized = {normalized_field_name(item).replace(" ", "_") for item in fields}
+    missing = sorted(REQUIRED_INTAKE_FIELDS - normalized)
+    if missing:
+        raise KSPError("The mandatory teacher interview is missing confirmed fields: " + ", ".join(missing))
+    return value
+
+
+def validate_input(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise KSPError("The JSON root must be an object.")
+    if "lesson_duration_minutes" in raw:
+        raise KSPError(
+            "lesson_duration_minutes is not accepted; every lesson is fixed at 40 minutes."
+        )
+    missing = sorted(key for key in REQUIRED_ROOT if key not in raw or not nonempty(raw[key]))
+    if missing:
+        raise KSPError("Missing required fields: " + ", ".join(missing))
+
+    data = deepcopy(raw)
+    data["intake_verification"] = validate_intake(data["intake_verification"])
+    data["language"] = normalized_language(data["language"])
+    if PRACTICAL_SUBJECT.search(str(data["subject"])):
+        if "practical_resources" not in data or not nonempty(data["practical_resources"]):
+            raise KSPError(
+                "practical_resources is required for chemistry, biology, physics, "
+                "natural science, and arts/crafts."
+            )
+        confirmed = {
+            normalized_field_name(item).replace(" ", "_")
+            for item in data["intake_verification"]["confirmed_fields"]
+        }
+        if "practical_resources" not in confirmed:
+            raise KSPError(
+                "The teacher must explicitly confirm practical_resources for this subject."
+            )
+        if not isinstance(data["practical_resources"], str) or not data["practical_resources"].strip():
+            raise KSPError("practical_resources must be non-empty teacher-provided text.")
+    lesson_count = data["lesson_count"]
+    if isinstance(lesson_count, bool) or not isinstance(lesson_count, int) or lesson_count <= 0:
+        raise KSPError("lesson_count must be a positive integer confirmed by the teacher.")
+
+    for key in (
+        "subject", "grade", "section", "topic", "teacher_experience",
+        "qualification_category", "class_characteristics",
+    ):
+        if not isinstance(data[key], (str, int)) or not str(data[key]).strip():
+            raise KSPError(f"{key} must be non-empty text or a number.")
+    class_size = data["class_size"]
+    if isinstance(class_size, bool) or not isinstance(class_size, int) or class_size <= 0:
+        raise KSPError("class_size must be a positive integer confirmed by the teacher.")
+
+    objectives = content_items(data["learning_objectives"])
+    for objective in objectives:
+        if not OBJECTIVE_CODE.search(objective):
+            raise KSPError(
+                "Each learning objective must include its supplied curriculum code; "
+                f"no code was found in: {objective!r}"
+            )
+    data["learning_objectives"] = objectives
+    data["lesson_objectives"] = bullet_items(data["lesson_objectives"], "lesson_objectives")
+    data["assessment_criteria"] = bullet_items(data["assessment_criteria"], "assessment_criteria")
+
+    if not isinstance(data["stages"], list) or not data["stages"]:
+        raise KSPError("stages must be a non-empty list.")
+    total = 0
+    for index, stage in enumerate(data["stages"], start=1):
+        if not isinstance(stage, dict):
+            raise KSPError(f"Stage {index} must be an object.")
+        missing_stage = sorted(key for key in REQUIRED_STAGE if key not in stage or not nonempty(stage[key]))
+        if missing_stage:
+            raise KSPError(f"Stage {index} is missing: " + ", ".join(missing_stage))
+        minutes = stage["minutes"]
+        if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes <= 0:
+            raise KSPError(f"Stage {index} minutes must be a positive integer.")
+        total += minutes
+        for key in REQUIRED_STAGE - {"minutes"}:
+            items = content_items(stage[key])
+            for item in items:
+                if any(term in item.casefold() for term in OLD_ENDING_TERMS):
+                    raise KSPError(
+                        "Use the localized final-stage term Reflection/Рефлексия; "
+                        "use reflection and actionable feedback; do not use former labels for the final stage."
+                    )
+    if total != LESSON_DURATION_MINUTES:
+        raise KSPError(
+            f"Stage minutes total {total}, but every lesson must total {LESSON_DURATION_MINUTES}."
+        )
+
+    appendix = data["methodological_appendix"]
+    if not isinstance(appendix, dict):
+        raise KSPError("methodological_appendix must be an object.")
+    missing_appendix = sorted(key for key in APPENDIX_REQUIRED if key not in appendix or not nonempty(appendix[key]))
+    if missing_appendix:
+        raise KSPError("The methodological appendix is missing: " + ", ".join(missing_appendix))
+    for key in APPENDIX_ORDER:
+        if key in appendix and nonempty(appendix[key]):
+            content_items(appendix[key])
+
+    knowledge_items = content_items(appendix["knowledge_skills_analysis"])
+    required_prefixes = KNOWLEDGE_SKILL_PREFIXES[data["language"]]
+    if len(knowledge_items) != len(required_prefixes):
+        raise KSPError(
+            "knowledge_skills_analysis must contain exactly five localized items: "
+            "subject content, factual knowledge, subject-specific skills, "
+            "cognitive skills, and final evidence of learning."
+        )
+    for index, (item, prefix) in enumerate(zip(knowledge_items, required_prefixes), start=1):
+        if not item.casefold().startswith(prefix.casefold()):
+            raise KSPError(
+                f"knowledge_skills_analysis item {index} must start with {prefix!r}."
+            )
+        removed = [term for term in REMOVED_KNOWLEDGE_SKILL_TERMS if term in item.casefold()]
+        if removed:
+            raise KSPError(
+                "knowledge_skills_analysis contains a removed category: "
+                + ", ".join(removed)
+            )
+
+    terminology_source = "\n".join(
+        item
+        for key, value in appendix.items()
+        if key not in {"term_explanations", "audit_summary"}
+        for item in content_items(value)
+    )
+    used_methods = [
+        name for name, pattern in SPECIALIZED_METHOD_PATTERNS.items()
+        if pattern.search(terminology_source)
+    ]
+    if used_methods:
+        if "term_explanations" not in appendix or not nonempty(appendix["term_explanations"]):
+            raise KSPError(
+                "term_explanations is required when a specialized method name or acronym is used: "
+                + ", ".join(used_methods)
+            )
+        explanations = "\n".join(content_items(appendix["term_explanations"]))
+        missing_terms = [
+            name for name in used_methods
+            if not SPECIALIZED_METHOD_PATTERNS[name].search(explanations)
+        ]
+        if missing_terms:
+            raise KSPError(
+                "term_explanations must explain each named method: "
+                + ", ".join(missing_terms)
+            )
+        status_marker = TERM_STATUS_MARKERS[data["language"]]
+        if status_marker.casefold() not in explanations.casefold():
+            raise KSPError(
+                "term_explanations must identify the pedagogical model as a "
+                f"{status_marker}."
+            )
+
+    fixed_sources = {
+        "kk": (KK_SOURCE_STATUS_GOAL, KK_SOURCE_STATUS_EXPLICIT, KK_SOURCE_STATUS_FORM),
+        "ru": (RU_SOURCE_STATUS_GOAL, RU_SOURCE_STATUS_EXPLICIT, RU_SOURCE_STATUS_FORM),
+        "en": (EN_SOURCE_STATUS_GOAL, EN_SOURCE_STATUS_EXPLICIT, EN_SOURCE_STATUS_FORM),
+    }
+    goal_source, explicit_source, form_source = fixed_sources[data["language"]]
+    source_status = [goal_source]
+    if "Explicit Instruction" in used_methods:
+        source_status.append(explicit_source)
+    elif used_methods:
+        method_name = used_methods[0]
+        generic_method_source = {
+            "kk": f"{method_name} оқыту әдістемесі — осы сабаққа бейімделген әдістемелік ұсыныс.",
+            "ru": f"Методика обучения {method_name} адаптирована для данного урока и представлена как методическая рекомендация.",
+            "en": f"The {method_name} teaching methodology has been adapted for this lesson as a methodological recommendation.",
+        }
+        source_status.append(generic_method_source[data["language"]])
+    else:
+        generic_source = {
+            "kk": "Сабақта көрсетілген оқыту әдістемесі — осы сабаққа бейімделген әдістемелік ұсыныс.",
+            "ru": "Указанная в уроке методика обучения адаптирована для данного урока и представлена как методическая рекомендация.",
+            "en": "The teaching methodology described in the lesson has been adapted as a methodological recommendation.",
+        }
+        source_status.append(generic_source[data["language"]])
+    source_status.append(form_source)
+    appendix["external_resources"] = source_status
+
+    banned = find_banned_field_names(data)
+    if banned:
+        raise KSPError("Banned field name found: " + ", ".join(dict.fromkeys(banned)))
+    return data
+
+
+def clear_paragraph(paragraph) -> None:
+    p = paragraph._element
+    for child in list(p):
+        if child.tag != qn("w:pPr"):
+            p.remove(child)
+
+
+def remove_deprecated_template_notes(doc) -> None:
+    """Remove the retired teacher-facing note retained in older bundled templates."""
+    for paragraph in list(doc.paragraphs):
+        text = paragraph.text.strip().casefold()
+        if any(text.startswith(prefix) for prefix in DEPRECATED_ASSESSMENT_NOTES):
+            paragraph._element.getparent().remove(paragraph._element)
+
+
+def format_run(run, *, bold: bool | None = None, italic: bool | None = None) -> None:
+    run.font.name = "Times New Roman"
+    run.font.size = Pt(12)
+    if bold is not None:
+        run.bold = bold
+    if italic is not None:
+        run.italic = italic
+    rpr = run._element.get_or_add_rPr()
+    rfonts = rpr.get_or_add_rFonts()
+    for attr in ("ascii", "hAnsi", "eastAsia", "cs"):
+        rfonts.set(qn(f"w:{attr}"), "Times New Roman")
+
+
+def set_paragraph_content(paragraph, value: Any, *, bold: bool = False) -> None:
+    items = content_items(value) if not isinstance(value, (str, int)) else [str(value).strip()]
+    clear_paragraph(paragraph)
+    for index, item in enumerate(items):
+        if index:
+            paragraph.add_run().add_break()
+        format_run(paragraph.add_run(item), bold=bold)
+
+
+def set_cell_content(cell, value: Any, *, bullet_list: bool = False) -> None:
+    items = content_items(value) if not isinstance(value, (str, int)) else [str(value).strip()]
+    cell.text = ""
+    first = cell.paragraphs[0]
+    for index, item in enumerate(items):
+        paragraph = first if index == 0 else cell.add_paragraph()
+        clear_paragraph(paragraph)
+        if bullet_list:
+            paragraph.style = "List Bullet"
+        format_run(paragraph.add_run(item))
+        paragraph.paragraph_format.space_after = Pt(0)
+        paragraph.paragraph_format.space_before = Pt(0)
+    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+
+def set_cell_width(cell, width_dxa: int) -> None:
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_w = tc_pr.find(qn("w:tcW"))
+    if tc_w is None:
+        tc_w = OxmlElement("w:tcW")
+        tc_pr.insert(0, tc_w)
+    tc_w.set(qn("w:type"), "dxa")
+    tc_w.set(qn("w:w"), str(width_dxa))
+
+
+def set_cell_margins(cell, value: int = 90) -> None:
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_mar = tc_pr.find(qn("w:tcMar"))
+    if tc_mar is None:
+        tc_mar = OxmlElement("w:tcMar")
+        tc_pr.append(tc_mar)
+    for side in ("top", "left", "bottom", "right"):
+        node = tc_mar.find(qn(f"w:{side}"))
+        if node is None:
+            node = OxmlElement(f"w:{side}")
+            tc_mar.append(node)
+        node.set(qn("w:w"), str(value))
+        node.set(qn("w:type"), "dxa")
+
+
+def mark_repeating_header(row) -> None:
+    tr_pr = row._tr.get_or_add_trPr()
+    marker = tr_pr.find(qn("w:tblHeader"))
+    if marker is None:
+        marker = OxmlElement("w:tblHeader")
+        tr_pr.append(marker)
+    marker.set(qn("w:val"), "true")
+
+
+def mark_row_cant_split(row) -> None:
+    tr_pr = row._tr.get_or_add_trPr()
+    marker = tr_pr.find(qn("w:cantSplit"))
+    if marker is None:
+        marker = OxmlElement("w:cantSplit")
+        tr_pr.append(marker)
+    marker.set(qn("w:val"), "true")
+
+
+def remove_body_rows(table) -> None:
+    for row in list(table.rows[1:]):
+        table._tbl.remove(row._tr)
+
+
+def administrative_value(value: Any) -> str:
+    return str(value).strip() if value is not None and str(value).strip() else "________________"
+
+
+def fill_front_matter(doc, data: dict[str, Any]) -> None:
+    language = data["language"]
+    paragraph = doc.paragraphs[0]
+    clear_paragraph(paragraph)
+    format_run(paragraph.add_run(LABELS[language]["organization"]), bold=False)
+    format_run(paragraph.add_run(administrative_value(data.get("organization"))), bold=False)
+
+    table = doc.tables[0]
+    values = {
+        0: data["section"],
+        1: administrative_value(data.get("teacher")),
+        2: administrative_value(data.get("date")),
+        3: data["grade"],
+        5: data["topic"],
+        6: data["learning_objectives"],
+        7: data["lesson_objectives"],
+        8: data["assessment_criteria"],
+    }
+    for row_index, value in values.items():
+        set_cell_content(
+            table.rows[row_index].cells[1],
+            value,
+            bullet_list=row_index in {7, 8},
+        )
+    set_cell_content(table.rows[4].cells[1], administrative_value(data.get("present")))
+    set_cell_content(table.rows[4].cells[3], administrative_value(data.get("absent")))
+
+
+def fill_stages(doc, data: dict[str, Any]) -> None:
+    table = doc.tables[1]
+    remove_body_rows(table)
+    mark_repeating_header(table.rows[0])
+    language = data["language"]
+    for stage in data["stages"]:
+        row = table.add_row()
+        mark_row_cant_split(row)
+        values = (
+            f"{stage['name']} ({stage['minutes']} {LABELS[language]['minute']})",
+            stage["teacher_actions"], stage["learner_actions"],
+            stage["assessment"], stage["resources"],
+        )
+        for index, (cell, value) in enumerate(zip(row.cells, values)):
+            set_cell_width(cell, LESSON_WIDTHS_DXA[index])
+            set_cell_margins(cell)
+            set_cell_content(cell, value)
+
+
+def add_heading(doc, text: str, level: int) -> None:
+    paragraph = doc.add_paragraph()
+    paragraph.style = f"Heading {level}"
+    paragraph.paragraph_format.keep_with_next = True
+    paragraph.paragraph_format.space_before = Pt(8 if level == 1 else 6)
+    paragraph.paragraph_format.space_after = Pt(3)
+    format_run(paragraph.add_run(text), bold=True)
+
+
+def add_appendix_content(doc, value: Any) -> None:
+    items = content_items(value)
+    for item in items:
+        paragraph = doc.add_paragraph(style="List Bullet" if len(items) > 1 else None)
+        paragraph.paragraph_format.space_after = Pt(3)
+        format_run(paragraph.add_run(item))
+
+
+def add_italic_notice(doc, heading: str, text: str) -> None:
+    paragraph = doc.add_paragraph()
+    paragraph.style = "Heading 2"
+    paragraph.paragraph_format.keep_with_next = True
+    paragraph.paragraph_format.space_before = Pt(6)
+    paragraph.paragraph_format.space_after = Pt(3)
+    format_run(paragraph.add_run(heading), bold=True, italic=True)
+    paragraph = doc.add_paragraph()
+    paragraph.paragraph_format.space_after = Pt(3)
+    format_run(paragraph.add_run(text), italic=True)
+
+
+def named_methods_in_content(value: Any) -> list[str]:
+    """Return recognized specialized methods in one appendix content block."""
+    text = "\n".join(content_items(value))
+    return [
+        name for name, pattern in SPECIALIZED_METHOD_PATTERNS.items()
+        if pattern.search(text)
+    ]
+
+
+def appendix_render_order(appendix: dict[str, Any]) -> list[str]:
+    """Place term explanations immediately after the block that first uses a term."""
+    order = [
+        key for key in APPENDIX_ORDER
+        if key in appendix and nonempty(appendix[key])
+    ]
+    if "term_explanations" not in appendix or not nonempty(appendix["term_explanations"]):
+        return order
+
+    anchor = next(
+        (key for key in order if named_methods_in_content(appendix[key])),
+        None,
+    )
+    if anchor is None:
+        anchor = next(
+            (key for key in ("methodology_application", "model_rationale", "goal_analysis") if key in order),
+            order[-1] if order else None,
+        )
+    if anchor is None:
+        return ["term_explanations"]
+    order.insert(order.index(anchor) + 1, "term_explanations")
+    return order
+
+
+def append_methodological_appendix(doc, data: dict[str, Any]) -> None:
+    remove_deprecated_template_notes(doc)
+    break_paragraph = doc.add_paragraph()
+    break_paragraph.add_run().add_break(WD_BREAK.PAGE)
+    labels = LABELS[data["language"]]
+    add_heading(doc, labels["appendix"], 1)
+    appendix = data["methodological_appendix"]
+    for key in appendix_render_order(appendix):
+        add_heading(doc, labels[key], 2)
+        add_appendix_content(doc, appendix[key])
+    add_italic_notice(doc, labels["professional_notice"], labels["professional_notice_text"])
+
+
+def normalize_document(doc) -> None:
+    for style in doc.styles:
+        if hasattr(style, "font"):
+            style.font.name = "Times New Roman"
+            style.font.size = Pt(12)
+            if style.name.startswith("Heading"):
+                style.font.bold = True
+    for paragraph in doc.paragraphs:
+        for run in paragraph.runs:
+            format_run(run)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                set_cell_margins(cell)
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        format_run(run)
+
+
+def remove_kazakh_criteria_note(doc, language: str) -> None:
+    if language != "kk":
+        return
+    removed_notes = {
+        "Ескерту: «Бағалау критерийлері» — әдістемелік қосымша өріс.",
+        "Ескерту: «Бағалау критерийлері» — әдістемелік қосымша бөлім.",
+    }
+    for paragraph in doc.paragraphs:
+        if paragraph.text.strip() in removed_notes:
+            element = paragraph._element
+            element.getparent().remove(element)
+
+
+def normalize_ooxml(path: Path) -> None:
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False, dir=path.parent) as handle:
+        temp_path = Path(handle.name)
+    try:
+        with zipfile.ZipFile(path, "r") as source, zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as target:
+            for item in source.infolist():
+                payload = source.read(item.filename)
+                if item.filename in {"word/document.xml", "word/styles.xml"}:
+                    root = etree.fromstring(payload)
+                    for fonts in root.xpath(".//w:rFonts", namespaces=NS):
+                        for attr in ("ascii", "hAnsi", "eastAsia", "cs"):
+                            fonts.set(f"{{{W_NS}}}{attr}", "Times New Roman")
+                        for attr in ("asciiTheme", "hAnsiTheme", "eastAsiaTheme", "cstheme"):
+                            fonts.attrib.pop(f"{{{W_NS}}}{attr}", None)
+                    for size in root.xpath(".//w:sz | .//w:szCs", namespaces=NS):
+                        size.set(f"{{{W_NS}}}val", "24")
+                    for height in root.xpath(".//w:trHeight[@w:hRule='exact']", namespaces=NS):
+                        height.set(f"{{{W_NS}}}hRule", "atLeast")
+                    payload = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+                target.writestr(item, payload)
+        temp_path.replace(path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def all_text(doc) -> str:
+    chunks = [paragraph.text for paragraph in doc.paragraphs]
+    for table in doc.tables:
+        for row in table.rows:
+            chunks.extend(cell.text for cell in row.cells)
+    return "\n".join(chunks)
+
+
+def structural_audit(
+    path: Path,
+    expected_stages: int | None = None,
+    expected_bullets: dict[int, int] | None = None,
+) -> dict[str, Any]:
+    if not path.exists() or path.stat().st_size == 0:
+        raise KSPError(f"DOCX does not exist or is empty: {path}")
+    doc = Document(path)
+    failures: list[str] = []
+    if len(doc.tables) < 2:
+        failures.append("Expected at least two KSP tables.")
+    else:
+        if len(doc.tables[0].rows) < 9:
+            failures.append("The KSP metadata table is incomplete.")
+        else:
+            for row_index, label in ((7, "lesson objectives"), (8, "assessment criteria")):
+                paragraphs = [p for p in doc.tables[0].rows[row_index].cells[1].paragraphs if p.text.strip()]
+                if not paragraphs or any(p.style.name != "List Bullet" for p in paragraphs):
+                    failures.append(f"The {label} must be formatted as a bulleted list.")
+                if any("\n" in p.text or "\r" in p.text for p in paragraphs):
+                    failures.append(f"Each {label} item must be a separate bullet paragraph.")
+                if any(re.match(r"^\s*(?:[•◦▪‣⁃*-]|\d+[.)])\s+", p.text) for p in paragraphs):
+                    failures.append(f"The {label} contain typed markers instead of clean list items.")
+                if expected_bullets is not None and len(paragraphs) != expected_bullets[row_index]:
+                    failures.append(
+                        f"The {label} bullet count is {len(paragraphs)}; "
+                        f"expected {expected_bullets[row_index]}."
+                    )
+        if len(doc.tables[1].columns) != 5:
+            failures.append("The lesson-progress table must have five columns.")
+        if expected_stages is not None and len(doc.tables[1].rows) != expected_stages + 1:
+            failures.append("The generated lesson-stage row count is incorrect.")
+        header_xml = doc.tables[1].rows[0]._tr.xml
+        if "tblHeader" not in header_xml:
+            failures.append("The lesson-progress table header is not marked to repeat.")
+
+    text = all_text(doc).casefold()
+    label_text = "\n".join(
+        row.cells[0].text.casefold()
+        for row in doc.tables[0].rows
+        if row.cells
+    ) if doc.tables else ""
+    found = [term for term in BANNED if term in label_text]
+    if found:
+        failures.append("Banned terminology found: " + ", ".join(found))
+    if not any(label["appendix"].casefold() in text for label in LABELS.values()):
+        failures.append("The methodological appendix is missing.")
+    for key in ("knowledge_skills_analysis", "methodology_application"):
+        if not any(label[key].casefold() in text for label in LABELS.values()):
+            failures.append(f"The methodological appendix section is missing: {key}.")
+    if not any(label["professional_notice_text"].casefold() in text for label in LABELS.values()):
+        failures.append("The fixed professional notice is missing.")
+    if any(old in text for old in ("дереккөздер және мәртебесі", "источники и статус", "sources and status")):
+        failures.append("The sources heading must be exactly Дереккөздер / Источники / Sources.")
+    notice_texts = {
+        value.casefold()
+        for label in LABELS.values()
+        for value in (label["professional_notice"], label["professional_notice_text"])
+    }
+    for paragraph in doc.paragraphs:
+        if paragraph.text.strip().casefold() in notice_texts:
+            visible_runs = [run for run in paragraph.runs if run.text.strip()]
+            if not visible_runs or any(run.italic is not True for run in visible_runs):
+                failures.append("The professional notice heading and text must be italic.")
+    if any(old in text for old in ("ішкі аудит қорытындысы", "итог внутреннего аудита", "internal-audit summary")):
+        failures.append("The internal-audit summary must not appear in the teacher-facing DOCX.")
+
+    with zipfile.ZipFile(path, "r") as archive:
+        for member in ("word/document.xml", "word/styles.xml"):
+            root = etree.fromstring(archive.read(member))
+            for fonts in root.xpath(".//w:rFonts", namespaces=NS):
+                for attr in ("ascii", "hAnsi", "eastAsia", "cs"):
+                    value = fonts.get(f"{{{W_NS}}}{attr}")
+                    if value and value != "Times New Roman":
+                        failures.append(f"Non-Times New Roman font in {member}: {value}")
+                        break
+            for size in root.xpath(".//w:sz | .//w:szCs", namespaces=NS):
+                if size.get(f"{{{W_NS}}}val") != "24":
+                    failures.append(f"Non-12 pt text size in {member}.")
+                    break
+
+    if failures:
+        raise KSPError("Structural audit failed:\n- " + "\n- ".join(dict.fromkeys(failures)))
+    return {
+        "path": str(path),
+        "pages": "visual render required",
+        "tables": len(doc.tables),
+        "lesson_stage_rows": len(doc.tables[1].rows) - 1,
+        "font": "Times New Roman 12 pt",
+        "status": "structural audit passed",
+    }
+
+
+def build(data: dict[str, Any], output: Path) -> dict[str, Any]:
+    template = TEMPLATES[data["language"]]
+    if not template.exists():
+        raise KSPError(f"Language template not found: {template}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    doc = Document(template)
+    if len(doc.tables) < 2 or len(doc.tables[0].rows) < 9:
+        raise KSPError("The selected template has an unexpected structure.")
+    fill_front_matter(doc, data)
+    fill_stages(doc, data)
+    remove_kazakh_criteria_note(doc, data["language"])
+    append_methodological_appendix(doc, data)
+    normalize_document(doc)
+    doc.core_properties.author = ""
+    doc.core_properties.last_modified_by = ""
+    doc.core_properties.keywords = (
+        f"language={data['language']};lesson-duration={LESSON_DURATION_MINUTES};"
+        f"requested-lesson-count={data['lesson_count']};"
+        f"stage-total={sum(stage['minutes'] for stage in data['stages'])}"
+    )
+    doc.save(output)
+    normalize_ooxml(output)
+    return structural_audit(
+        output,
+        expected_stages=len(data["stages"]),
+        expected_bullets={
+            7: len(data["lesson_objectives"]),
+            8: len(data["assessment_criteria"]),
+        },
+    )
+
+
+def example(*, test_fixture: bool = False) -> dict[str, Any]:
+    data = {
+        "intake_verification": {
+            "confirmed_by_user": test_fixture,
+            "confirmed_fields": sorted(REQUIRED_INTAKE_FIELDS),
+            "source_summary": (
+                "Synthetic developer test fixture."
+                if test_fixture else
+                "Replace with real teacher messages or attached-document evidence."
+            ),
+        },
+        "language": "ru",
+        "subject": "Алгебра",
+        "organization": "",
+        "teacher": "",
+        "date": "",
+        "grade": "7",
+        "class_size": 24,
+        "teacher_experience": "8 лет",
+        "qualification_category": "педагог-эксперт",
+        "class_characteristics": "Разный темп работы; части учащихся нужна визуальная опора.",
+        "present": "",
+        "absent": "",
+        "section": "Функция и график функции",
+        "topic": "Линейная функция и её график",
+        "lesson_count": 1,
+        "learning_objectives": [
+            "7.4.1.4 — знать определение линейной функции, строить её график и определять расположение в зависимости от коэффициента k"
+        ],
+        "lesson_objectives": [
+            "Строить график линейной функции и объяснять влияние коэффициента k на его расположение."
+        ],
+        "assessment_criteria": [
+            "Строит график по заданной формуле.",
+            "Объясняет расположение графика с опорой на значение коэффициента k."
+        ],
+        "stages": [
+            {
+                "name": "Начало урока", "minutes": 5,
+                "teacher_actions": "Организует актуализацию необходимых знаний.",
+                "learner_actions": "Отвечают на диагностические вопросы.",
+                "assessment": "Устная обратная связь.", "resources": "Доска."
+            },
+            {
+                "name": "Основная часть", "minutes": 30,
+                "teacher_actions": "Организует исследование и практику построения графиков.",
+                "learner_actions": "Строят, сравнивают и объясняют графики.",
+                "assessment": "Проверка по критериям и комментарий учителя.", "resources": "Карточки, координатная плоскость."
+            },
+            {
+                "name": "Рефлексия", "minutes": 5,
+                "teacher_actions": "Организует итоговую рефлексию с доказательством достижения цели.",
+                "learner_actions": "Формулируют вывод, соотносят ответ с критерием и определяют следующий шаг.",
+                "assessment": "Индивидуальный ответ и самооценивание по критерию.", "resources": "Карточка рефлексии."
+            }
+        ],
+        "methodological_appendix": {
+            "goal_analysis": "Цель требует построения графика и объяснения влияния коэффициента.",
+            "knowledge_skills_analysis": [
+                "ПРЕДМЕТНОЕ СОДЕРЖАНИЕ: линейная функция, её график и коэффициент k — основание: цель обучения и тема.",
+                "ФАКТИЧЕСКИЕ ЗНАНИЯ: обозначение коэффициента k и координаты точек графика — основание: цель обучения.",
+                "ПРЕДМЕТНЫЕ НАВЫКИ: строить и сопоставлять графики линейных функций — основание: цель обучения и задание урока.",
+                "ПОЗНАВАТЕЛЬНЫЕ НАВЫКИ: применять способ построения, анализировать зависимость и объяснять вывод — основание: действия ученика.",
+                "ИТОГОВОЕ ДОКАЗАТЕЛЬСТВО ОБУЧЕНИЯ: правильно построенный график и обоснованное объяснение влияния коэффициента k."
+            ],
+            "methodology_application": "Управляемое исследование: ученики строят и сопоставляют графики, учитель собирает объяснения и при ошибке возвращает опору на координатную сетку и контрастный пример.",
+            "model_rationale": "Выбрано управляемое исследование с последующей самостоятельной практикой.",
+            "differentiation": "Опорная сетка доступна всем; подсказка выдаётся по диагностике; усложнение требует обоснования.",
+            "formative_assessment": "Учитель собирает графики и объяснения, затем корректирует практику.",
+            "alternatives": "Резерв: сопоставление формул и готовых графиков.",
+            "audit_summary": "Цели, критерии, задания и время согласованы."
+        }
+    }
+    if not test_fixture:
+        data["intake_verification"]["confirmed_fields"] = []
+    return data
+
+
+def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("input", nargs="?", type=Path, help="UTF-8 JSON input")
+    parser.add_argument("output", nargs="?", type=Path, help="output DOCX path")
+    parser.add_argument("--check", type=Path, help="run structural audit on an existing DOCX")
+    parser.add_argument(
+        "--print-example", action="store_true",
+        help="print a schema fixture that still requires real teacher confirmation",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    args = parse_args(argv)
+    try:
+        if args.print_example:
+            print(json.dumps(example(), ensure_ascii=False, indent=2))
+            return 0
+        if args.check:
+            print(json.dumps(structural_audit(args.check), ensure_ascii=False, indent=2))
+            return 0
+        if not args.input or not args.output:
+            raise KSPError("Provide input.json and output.docx, or use --print-example/--check.")
+        with args.input.open("r", encoding="utf-8") as handle:
+            data = validate_input(json.load(handle))
+        result = build(data, args.output.resolve())
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    except (KSPError, json.JSONDecodeError, OSError, zipfile.BadZipFile) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

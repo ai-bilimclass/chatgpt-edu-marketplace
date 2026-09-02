@@ -1,0 +1,8 @@
+interface:
+  display_name: "Бағалау (ҚБ/БЖБ/ТЖБ) / Оценивание (ФО/СОР/СОЧ)"
+  short_description: ФБ, аралық бағалау, БЖБ және ТЖБ материалдарын құрастырады
+  default_prompt: Используй $school-assessment-builder, чтобы создать проверяемый оценочный материал для моего класса.
+  icon_small: assets/icon.png
+  icon_large: assets/icon.png
+policy:
+  allow_implicit_invocation: true
