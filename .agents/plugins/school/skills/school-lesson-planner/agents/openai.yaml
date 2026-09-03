@@ -1,0 +1,8 @@
+interface:
+  display_name: "ҚМЖ / КСП / План урока"
+  short_description: "1–11 сыныптарға ҚМЖ/КСП және жоспар құрастырады"
+  default_prompt: "Используй $school-lesson-planner, выбери режим по классу и создай КСП или план урока на русском языке по точной цели обучения из материалов учителя."
+  icon_small: "assets/icon.png"
+  icon_large: "assets/icon.png"
+policy:
+  allow_implicit_invocation: true

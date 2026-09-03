@@ -1,0 +1,9 @@
+interface:
+  display_name: "Презентация"
+  short_description: ҚМЖ/КСП негізінде сабақ презентациясын құрастырады
+  default_prompt: Используй $school-presentation-builder, чтобы создать
+    или отредактировать презентацию к уроку по прикреплённому либо утверждённому в этом чате КСП/ҚМЖ.
+  icon_small: assets/icon.png
+  icon_large: assets/icon.png
+policy:
+  allow_implicit_invocation: true

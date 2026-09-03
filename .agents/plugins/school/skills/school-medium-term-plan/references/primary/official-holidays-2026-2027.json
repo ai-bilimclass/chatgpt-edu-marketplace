@@ -1,0 +1,46 @@
+{
+  "academic_year": "2026–2027",
+  "verified_on": "2026-08-15",
+  "sources": [
+    {
+      "title": "Қазақстан Республикасындағы мерекелер туралы ҚР Заңы №267",
+      "url": "https://adilet.zan.kz/kaz/docs/Z010000267_"
+    },
+    {
+      "title": "2026 жылы Қазақстан Республикасындағы мереке және демалыс күндер",
+      "url": "https://www.gov.kz/article/33969?lang=kk"
+    },
+    {
+      "title": "2026 жылға арналған өндірістік күнтізбе",
+      "url": "https://www.gov.kz/article/16887?lang=ru"
+    }
+  ],
+  "public_holidays": [
+    {"date": "2026-10-25", "name": "Республика күні", "kind": "national_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2026-10-26", "name": "Республика күніне байланысты ауыстырылған демалыс күні", "kind": "observed_day_off", "based_on": "2026-10-25", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2026-12-16", "name": "Қазақстан Республикасының Тәуелсіздік күні", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-01-01", "name": "Жаңа жыл", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-01-02", "name": "Жаңа жыл", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-01-04", "name": "2 қаңтарға байланысты ауыстырылған демалыс күні", "kind": "observed_day_off", "based_on": "2027-01-02", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-01-07", "name": "Православиелік Рождество", "kind": "statutory_day_off", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-03-08", "name": "Халықаралық әйелдер күні", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-03-15", "name": "Қазақстан Республикасының Конституциясы күні", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-03-21", "name": "Наурыз мейрамы", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-03-22", "name": "Наурыз мейрамы", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-03-23", "name": "Наурыз мейрамы", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-03-24", "name": "21 наурызға байланысты ауыстырылған демалыс күні", "kind": "observed_day_off", "based_on": "2027-03-21", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-05-01", "name": "Қазақстан халқының бірлігі күні", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-05-03", "name": "1 мамырға байланысты ауыстырылған демалыс күні", "kind": "observed_day_off", "based_on": "2027-05-01", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-05-07", "name": "Отан қорғаушы күні", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-05-09", "name": "Жеңіс күні", "kind": "state_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
+    {"date": "2027-05-10", "name": "9 мамырға байланысты ауыстырылған демалыс күні", "kind": "observed_day_off", "based_on": "2027-05-09", "official_transfer_date": null, "teacher_transfer_date": null}
+  ],
+  "pending_variable_holidays": [
+    {
+      "name": "Құрбан айттың бірінші күні",
+      "year": 2027,
+      "status": "not_officially_published_as_of_verification_date",
+      "instruction": "Ресми күн жарияланғанша күнді болжамау және КТП генерациясының алдында gov.kz немесе Әділеттен қайта тексеру"
+    }
+  ]
+}

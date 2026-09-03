@@ -1,0 +1,8 @@
+interface:
+  display_name: "КТЖ / КТП"
+  short_description: "1–11 сыныптарға мұғалім деректері бойынша КТП құрастырады"
+  default_prompt: "Используй $school-medium-term-plan для создания КТП по загруженной учебной программе или точным целям обучения."
+  icon_small: assets/icon.png
+  icon_large: assets/icon.png
+policy:
+  allow_implicit_invocation: true
