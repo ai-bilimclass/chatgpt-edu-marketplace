@@ -26,7 +26,11 @@ class SpreadsheetSourceContractTests(unittest.TestCase):
     def test_every_skill_routes_spreadsheet_sources(self):
         for skill in SKILLS:
             with self.subTest(skill=skill):
-                text = (PLUGIN_ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+                skill_root = PLUGIN_ROOT / "skills" / skill
+                text = "\n".join(
+                    (skill_root / filename).read_text(encoding="utf-8")
+                    for filename in ("SKILL.md", "runtime-workflow.md")
+                )
                 self.assertIn("spreadsheet-source-intake.md", text)
                 self.assertIn(".xlsx", text)
 

@@ -1,5 +1,7 @@
 # The Art and Science of Teaching — Robert Marzano
 
+**Архитектурный статус:** методологическое основание для системного выбора стратегий; не самостоятельная универсальная модель урока в методическом роутере.
+
 ## Источниковая основа
 
 - Robert J. Marzano, *The Art and Science of Teaching*.

@@ -11,7 +11,9 @@ class GuidanceRoutingTests(unittest.TestCase):
         guidance = ROOT / "references" / "teacher-methodological-guidance.md"
         self.assertTrue(guidance.is_file())
         entrypoint = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("references/teacher-methodological-guidance.md", entrypoint)
+        workflow = (ROOT / "runtime-workflow.md").read_text(encoding="utf-8")
+        self.assertIn("runtime-workflow.md", entrypoint)
+        self.assertIn("references/teacher-methodological-guidance.md", workflow)
 
     def test_both_grade_modes_route_to_shared_guidance(self):
         for relative in (Path("primary/MODE.md"), Path("secondary/MODE.md")):
@@ -26,12 +28,13 @@ class GuidanceRoutingTests(unittest.TestCase):
         self.assertIn("ровно три", primary_mode)
         self.assertIn("текущем диалоге", primary_mode)
 
-    def test_both_grade_modes_require_three_concepts_before_docx(self):
+    def test_both_grade_modes_select_methodology_automatically(self):
         primary_mode = (ROOT / "primary" / "MODE.md").read_text(encoding="utf-8")
         secondary_mode = (ROOT / "secondary" / "MODE.md").read_text(encoding="utf-8")
-        self.assertIn("три действительно разные концепции", primary_mode)
-        self.assertIn("ровно три действительно разные концепции урока", secondary_mode)
-        self.assertIn("До выбора учителя или явной передачи выбора навыку запрещено", secondary_mode)
+        for content in (primary_mode, secondary_mode):
+            self.assertIn("автоматически выбрать один основной метод", content)
+            self.assertIn("Не спрашивать учителя, какого автора или методику выбрать", content)
+            self.assertNotIn("три действительно разные концепции урока", content)
 
     def test_local_markdown_links_in_entrypoint_resolve(self):
         content = (ROOT / "SKILL.md").read_text(encoding="utf-8")

@@ -1,5 +1,7 @@
 # Differentiated Instruction (саралап оқыту / дифференцированное обучение) — Carol Ann Tomlinson
 
+**Архитектурный статус:** составная часть основного направления `Дифференциация и доступность`; используется совместно с UDL по общей логике [центрального файла](../differentiation-and-adaptive-teaching.md).
+
 ## Источниковая основа
 
 - Carol Ann Tomlinson, *How to Differentiate Instruction in Academically Diverse Classrooms*, 3rd Edition.

@@ -12,14 +12,30 @@ def read(relative):
 class PresentationSkillContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.skill = read("SKILL.md")
+        cls.skill = "\n".join((read("SKILL.md"), read("runtime-workflow.md")))
         cls.design = read("references/design-core.md")
         cls.cases = read("references/evaluation-cases.md")
+        cls.schema = read("references/lesson-plan-schema.md")
+        cls.handoff = read("../../references/lesson-plan-handoff.md")
+        cls.layouts = read("assets/artifact-tool-school-deck/layouts.mjs")
 
-    def test_new_deck_requires_teacher_uploaded_lesson_plan(self):
-        self.assertIn("абсолютный шлюз КСП/ҚМЖ", self.skill)
-        self.assertIn("не создавать черновик, код или PPTX", self.skill)
-        self.assertIn("вставленным моделью текстом", self.skill)
+    def test_new_deck_requires_attached_or_same_chat_approved_plan(self):
+        self.assertIn("общий шлюз ҚМЖ/КСП", self.skill)
+        self.assertIn("подтверждённого учителем плана, созданного в текущем чате", self.skill)
+        self.assertIn("lesson_plan_handoff", self.skill)
+        self.assertIn("approved_by_teacher", self.handoff)
+
+    def test_assessment_criteria_are_localized(self):
+        self.assertIn("Бағалау критерийлері", self.skill)
+        self.assertIn("Критерии оценивания", self.skill)
+        self.assertIn("Assessment criteria", self.skill)
+        self.assertNotIn("Нәтиже өлшемдері", self.layouts)
+        self.assertIn('criteriaLabel = "Критерии оценивания"', self.layouts)
+
+    def test_presentation_applies_methodology_from_handoff_without_reselection(self):
+        self.assertIn("Если `lesson_plan_handoff` содержит блок `methodology`", self.skill)
+        self.assertIn("Не выбирать другую основную методику", self.skill)
+        self.assertIn("не являются активным методом обучения", self.skill)
 
     def test_only_one_combined_clarification_round(self):
         self.assertIn("не более одного объединённого уточняющего вопроса", self.skill)

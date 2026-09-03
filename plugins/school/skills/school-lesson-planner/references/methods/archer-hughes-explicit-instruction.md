@@ -1,5 +1,7 @@
 # Explicit Instruction (айқын нұсқау арқылы оқыту / явное обучение) — Anita Archer и Charles Hughes
 
+**Архитектурный статус:** доказательное основание для прямого объяснения и управляемой практики, прежде всего внутри основного направления Rosenshine; не отдельный вариант выбора в методическом роутере.
+
 ## Источниковая основа
 
 - Anita L. Archer, Charles A. Hughes, *Explicit Instruction: Effective and Efficient Teaching*.

@@ -1,5 +1,7 @@
 # Understanding by Design (нәтижеден кері жобалау / обратное проектирование от результата) — Wiggins и McTighe
 
+**Архитектурный статус:** одно из шести основных методических направлений.
+
 ## Источниковая основа
 
 - Grant Wiggins, Jay McTighe, *Understanding by Design*, Expanded 2nd Edition.

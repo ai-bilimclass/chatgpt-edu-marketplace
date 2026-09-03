@@ -3,8 +3,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+SKILL = "\n".join(
+    (ROOT / filename).read_text(encoding="utf-8")
+    for filename in ("SKILL.md", "runtime-workflow.md")
+)
 MATRIX = (ROOT / "references" / "routing-matrix.md").read_text(encoding="utf-8")
+FOLLOW_UP = (ROOT / ".." / ".." / "references" / "next-material-follow-up.md").read_text(encoding="utf-8")
 
 
 class RouterContractTests(unittest.TestCase):
@@ -30,7 +34,22 @@ class RouterContractTests(unittest.TestCase):
         self.assertIn("Не заполнять пропуски предположениями", SKILL)
 
     def test_presentation_requires_lesson_plan(self):
-        self.assertIn("Прикреплённый учителем файл ҚМЖ/КСП обязателен", MATRIX)
+        self.assertIn("Прикреплённый ҚМЖ/КСП либо полный подтверждённый", MATRIX)
+
+    def test_follow_up_is_localized_and_excludes_completed_product(self):
+        for question in (
+            "Келесі ретте қандай оқу материалын дайындау қажет?",
+            "Какой учебный материал необходимо подготовить следующим?",
+            "What learning material should be prepared next?",
+        ):
+            self.assertIn(question, FOLLOW_UP)
+        self.assertIn("убрать только что завершённый вид материала", FOLLOW_UP)
+        self.assertIn("В этом примере КТП исключён", FOLLOW_UP)
+
+    def test_router_passes_methodology_without_selecting_it(self):
+        self.assertIn("methodology: {}", SKILL)
+        self.assertIn("не предлагает учителю выбрать методику", SKILL)
+        self.assertIn("не формирует этот блок самостоятельно", SKILL)
 
     def test_secondary_ktp_requires_teacher_program(self):
         self.assertIn("Для 5–11 классов — загруженная учебная программа", MATRIX)

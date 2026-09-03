@@ -2,6 +2,6 @@ interface:
   display_name: "Жұмыс парағы / Рабочий лист"
   short_description: "1–11 сыныптарға оқу және практикалық/зертханалық парақтар"
   brand_color: "#2E7D6E"
-  default_prompt: "Use $school-worksheet-builder to create an age-appropriate worksheet from my lesson goal."
+  default_prompt: "Используй $school-worksheet-builder, чтобы создать рабочий лист с дескрипторами на основе прикреплённого или утверждённого в этом чате ҚМЖ/КСП/Lesson Plan."
   icon_small: assets/icon.png
   icon_large: assets/icon.png

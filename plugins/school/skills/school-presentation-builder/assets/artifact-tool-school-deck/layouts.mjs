@@ -58,12 +58,12 @@ export function workedExampleSlide(slide, { title, steps, result, palette, numbe
   addText(slide, "example-result", result, { left: 890, top: 230, width: 290, height: 170 }, textStyle(PT.lead, palette.dark, { bold: true }));
 }
 
-export function taskSlide(slide, { title, instruction, steps, success, palette, number }) {
+export function taskSlide(slide, { title, instruction, steps, success, criteriaLabel = "Критерии оценивания", palette, number }) {
   slide.background.fill = palette.paper;
   addHeader(slide, title, palette, number);
   addText(slide, "task-instruction", instruction, { left: 76, top: 124, width: 1090, height: 90 }, textStyle(PT.lead, palette.dark, { bold: true }));
   addText(slide, "task-steps", steps.map((x, i) => `${i + 1}. ${x}`).join("\n"), { left: 92, top: 246, width: 700, height: 330 }, textStyle(PT.body, palette.ink));
-  addText(slide, "task-success", `Критерий успеха\n${success}`, { left: 850, top: 270, width: 330, height: 220 }, textStyle(PT.subhead, palette.dark, { bold: true }));
+  addText(slide, "task-success", `${criteriaLabel}\n${success}`, { left: 850, top: 270, width: 330, height: 220 }, textStyle(PT.subhead, palette.dark, { bold: true }));
 }
 
 export function assessmentSlide(slide, { title, questions, palette, number }) {

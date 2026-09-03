@@ -38,7 +38,7 @@ Interpretation: `24-28` methodologically coherent; `18-23` workable with targete
 - Are lesson objectives observable, achievable, and derived from them?
 - Does every major task produce evidence for a stated objective?
 - Do assessment criteria and descriptors match the required evidence?
-- Does the methodological appendix contain exactly the five required items derived from the exact objective and lesson topic: subject content, factual knowledge, subject-specific skills, cognitive skills, and final evidence of learning?
+- Does the methodological appendix contain exactly four required items derived from the exact objective and lesson topic: subject content, factual knowledge, subject-specific skills, and cognitive skills, without a separate final-evidence row?
 - Is every claimed skill traceable to the objective, topic, or an actual lesson task, with learner evidence?
 - Is the selected methodology shown through a concrete mechanism, learner action, evidence, and teacher response rather than merely named?
 - If a specialized method name or acronym is used, is it explained briefly in plain language, with its lesson function and recommendation status?

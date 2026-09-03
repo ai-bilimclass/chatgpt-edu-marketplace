@@ -83,10 +83,9 @@ Append these sections after the official plan:
    - subject content;
    - factual knowledge;
    - subject-specific skills;
-   - cognitive skills and actual Bloom level;
-   - final evidence of learning.
+   - cognitive skills and actual Bloom level.
 
-   Use exactly these five localized rows, in this order. Do not add separate rows for conceptual knowledge, procedural knowledge, metacognitive knowledge, or additional skills. Use the labels defined in `../../references/methodological-appendix.md`.
+   Use exactly these four localized rows, in this order. Do not add separate rows for conceptual knowledge, procedural knowledge, metacognitive knowledge, final evidence of learning, or additional skills. Express the evidence through the methodological analysis of the objective and assessment criteria. Use the labels defined in `../../references/methodological-appendix.md`.
 
 3. **Application of the selected methodology**
    - pedagogical function;

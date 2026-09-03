@@ -1,5 +1,7 @@
 # Universal Design for Learning (оқытудың әмбебап дизайны / универсальный дизайн обучения) — CAST, Anne Meyer и David Rose
 
+**Архитектурный статус:** составная часть основного направления `Дифференциация и доступность`; UDL заранее уменьшает барьеры и не выбирается параллельно как независимая универсальная модель.
+
 ## Источниковая основа
 
 - Anne Meyer, David H. Rose, David Gordon (ред.), *Universal Design for Learning: Principles, Framework, and Practice*, 3rd Edition, 2025.

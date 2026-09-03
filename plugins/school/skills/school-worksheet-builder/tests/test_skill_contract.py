@@ -13,7 +13,7 @@ def read(relative):
 class WorksheetSkillContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.skill = read("SKILL.md")
+        cls.skill = "\n".join((read("SKILL.md"), read("runtime-workflow.md")))
         cls.primary_design = read("primary/design-system.md")
         cls.primary_regular = read("primary/regular-worksheet.md")
         cls.primary_practical = read("primary/practical-investigation.md")
@@ -21,6 +21,26 @@ class WorksheetSkillContractTests(unittest.TestCase):
         cls.secondary_lab = read("secondary/laboratory-practical.md")
         cls.cognitive = read("secondary/cognitive-levels.md")
         cls.safety = read("references/source-and-safety-policy.md")
+
+    def test_requires_attached_or_same_chat_approved_lesson_plan(self):
+        self.assertIn("общий шлюз ҚМЖ/КСП", self.skill)
+        self.assertIn("lesson_plan_handoff", self.skill)
+        self.assertIn("из текущего чата", self.skill)
+
+    def test_every_task_has_a_descriptor(self):
+        combined = "\n".join((
+            self.skill,
+            self.primary_regular,
+            self.primary_practical,
+            self.secondary_regular,
+            self.secondary_lab,
+        ))
+        self.assertIn("Для каждого задания включать локализованный дескриптор", combined)
+        self.assertGreaterEqual(combined.casefold().count("дескриптор"), 5)
+
+    def test_methodology_is_applied_from_handoff_without_reselection(self):
+        self.assertIn("Если handoff содержит блок `methodology`", self.skill)
+        self.assertIn("Не выбирать заново основной или специализированный метод", self.skill)
 
     def test_all_four_routes_are_declared(self):
         for path in (

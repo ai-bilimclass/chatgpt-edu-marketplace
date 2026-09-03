@@ -1,5 +1,7 @@
 # Embedded Formative Assessment (оқытуға кіріктірілген қалыптастырушы бағалау / формативное оценивание, встроенное в обучение) — Dylan Wiliam
 
+**Архитектурный статус:** одно из шести основных методических направлений.
+
 ## Источниковая основа
 
 - Dylan Wiliam, *Embedded Formative Assessment*; Paul Black и Dylan Wiliam, *Inside the Black Box*.

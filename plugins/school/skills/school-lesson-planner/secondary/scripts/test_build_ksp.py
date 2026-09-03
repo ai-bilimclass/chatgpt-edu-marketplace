@@ -82,7 +82,7 @@ class BuildKSPTests(unittest.TestCase):
     def test_knowledge_skills_analysis_requires_exactly_five_items(self):
         data = self.data()
         data["methodological_appendix"]["knowledge_skills_analysis"].pop()
-        with self.assertRaisesRegex(BUILD_KSP.KSPError, "exactly five"):
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "exactly four"):
             BUILD_KSP.validate_input(data)
 
     def test_removed_knowledge_category_is_rejected(self):

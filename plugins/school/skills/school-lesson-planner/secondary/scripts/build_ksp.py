@@ -136,21 +136,18 @@ KNOWLEDGE_SKILL_PREFIXES = {
         "ФАКТІЛІК БІЛІМ:",
         "ПӘНДІК ДАҒДЫЛАР:",
         "ТАНЫМДЫҚ ДАҒДЫЛАР:",
-        "ҚОРЫТЫНДЫ ОҚУ ДӘЛЕЛІ:",
     ),
     "ru": (
         "ПРЕДМЕТНОЕ СОДЕРЖАНИЕ:",
         "ФАКТИЧЕСКИЕ ЗНАНИЯ:",
         "ПРЕДМЕТНЫЕ НАВЫКИ:",
         "ПОЗНАВАТЕЛЬНЫЕ НАВЫКИ:",
-        "ИТОГОВОЕ ДОКАЗАТЕЛЬСТВО ОБУЧЕНИЯ:",
     ),
     "en": (
         "SUBJECT CONTENT:",
         "FACTUAL KNOWLEDGE:",
         "SUBJECT-SPECIFIC SKILLS:",
         "COGNITIVE SKILLS:",
-        "FINAL EVIDENCE OF LEARNING:",
     ),
 }
 REMOVED_KNOWLEDGE_SKILL_TERMS = (
@@ -162,7 +159,7 @@ REMOVED_KNOWLEDGE_SKILL_TERMS = (
     "дополнительные навыки", "conceptual knowledge", "procedural knowledge",
     "metacognitive knowledge", "additional skills",
 )
-SPECIALIZED_METHOD_PATTERNS = {
+METHOD_TERM_PATTERNS = {
     "UbD": re.compile(r"(?<![\w-])(?:ubd|understanding by design)(?![\w-])", re.IGNORECASE),
     "UDL": re.compile(r"(?<![\w-])(?:udl|universal design for learning)(?![\w-])", re.IGNORECASE),
     "Visible Learning": re.compile(r"(?<![\w-])visible learning(?![\w-])", re.IGNORECASE),
@@ -173,6 +170,13 @@ SPECIALIZED_METHOD_PATTERNS = {
     "Archer-Hughes": re.compile(r"(?<![\w-])archer[–—-]hughes(?![\w-])", re.IGNORECASE),
     "Hattie": re.compile(r"(?<![\w-])hattie(?![\w-])", re.IGNORECASE),
     "Agarwal-Bain": re.compile(r"(?<![\w-])agarwal[–—-]bain(?![\w-])", re.IGNORECASE),
+    "Rosenshine": re.compile(r"(?<![\w-])rosenshine(?:’s|'s)?(?![\w-])", re.IGNORECASE),
+    "Visible Thinking": re.compile(r"(?<![\w-])visible thinking(?![\w-])", re.IGNORECASE),
+    "Dialogic Teaching": re.compile(r"(?<![\w-])dialogic teaching(?![\w-])", re.IGNORECASE),
+    "Project Based Learning": re.compile(r"(?<![\w-])(?:project based learning|pbl)(?![\w-])", re.IGNORECASE),
+    "Design Thinking": re.compile(r"(?<![\w-])design thinking(?![\w-])", re.IGNORECASE),
+    "Inquiry-based Learning": re.compile(r"(?<![\w-])inquiry[- ]based learning(?![\w-])", re.IGNORECASE),
+    "Problem-based Learning": re.compile(r"(?<![\w-])problem[- ]based learning(?![\w-])", re.IGNORECASE),
 }
 TERM_STATUS_MARKERS = {
     "kk": "әдістемелік ұсыныс",
@@ -380,9 +384,8 @@ def validate_input(raw: Any) -> dict[str, Any]:
     required_prefixes = KNOWLEDGE_SKILL_PREFIXES[data["language"]]
     if len(knowledge_items) != len(required_prefixes):
         raise KSPError(
-            "knowledge_skills_analysis must contain exactly five localized items: "
-            "subject content, factual knowledge, subject-specific skills, "
-            "cognitive skills, and final evidence of learning."
+            "knowledge_skills_analysis must contain exactly four localized items: "
+            "subject content, factual knowledge, subject-specific skills, and cognitive skills."
         )
     for index, (item, prefix) in enumerate(zip(knowledge_items, required_prefixes), start=1):
         if not item.casefold().startswith(prefix.casefold()):
@@ -403,19 +406,19 @@ def validate_input(raw: Any) -> dict[str, Any]:
         for item in content_items(value)
     )
     used_methods = [
-        name for name, pattern in SPECIALIZED_METHOD_PATTERNS.items()
+        name for name, pattern in METHOD_TERM_PATTERNS.items()
         if pattern.search(terminology_source)
     ]
     if used_methods:
         if "term_explanations" not in appendix or not nonempty(appendix["term_explanations"]):
             raise KSPError(
-                "term_explanations is required when a specialized method name or acronym is used: "
+                "term_explanations is required when a professional method name or acronym is used: "
                 + ", ".join(used_methods)
             )
         explanations = "\n".join(content_items(appendix["term_explanations"]))
         missing_terms = [
             name for name in used_methods
-            if not SPECIALIZED_METHOD_PATTERNS[name].search(explanations)
+            if not METHOD_TERM_PATTERNS[name].search(explanations)
         ]
         if missing_terms:
             raise KSPError(
@@ -643,10 +646,10 @@ def add_italic_notice(doc, heading: str, text: str) -> None:
 
 
 def named_methods_in_content(value: Any) -> list[str]:
-    """Return recognized specialized methods in one appendix content block."""
+    """Return recognized professional method terms in one appendix content block."""
     text = "\n".join(content_items(value))
     return [
-        name for name, pattern in SPECIALIZED_METHOD_PATTERNS.items()
+        name for name, pattern in METHOD_TERM_PATTERNS.items()
         if pattern.search(text)
     ]
 
@@ -942,8 +945,7 @@ def example(*, test_fixture: bool = False) -> dict[str, Any]:
                 "ПРЕДМЕТНОЕ СОДЕРЖАНИЕ: линейная функция, её график и коэффициент k — основание: цель обучения и тема.",
                 "ФАКТИЧЕСКИЕ ЗНАНИЯ: обозначение коэффициента k и координаты точек графика — основание: цель обучения.",
                 "ПРЕДМЕТНЫЕ НАВЫКИ: строить и сопоставлять графики линейных функций — основание: цель обучения и задание урока.",
-                "ПОЗНАВАТЕЛЬНЫЕ НАВЫКИ: применять способ построения, анализировать зависимость и объяснять вывод — основание: действия ученика.",
-                "ИТОГОВОЕ ДОКАЗАТЕЛЬСТВО ОБУЧЕНИЯ: правильно построенный график и обоснованное объяснение влияния коэффициента k."
+                "ПОЗНАВАТЕЛЬНЫЕ НАВЫКИ: применять способ построения, анализировать зависимость и объяснять вывод — основание: действия ученика."
             ],
             "methodology_application": "Управляемое исследование: ученики строят и сопоставляют графики, учитель собирает объяснения и при ошибке возвращает опору на координатную сетку и контрастный пример.",
             "model_rationale": "Выбрано управляемое исследование с последующей самостоятельной практикой.",
