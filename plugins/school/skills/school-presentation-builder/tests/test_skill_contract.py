@@ -19,11 +19,12 @@ class PresentationSkillContractTests(unittest.TestCase):
         cls.handoff = read("../../references/lesson-plan-handoff.md")
         cls.layouts = read("assets/artifact-tool-school-deck/layouts.mjs")
 
-    def test_new_deck_requires_attached_or_same_chat_approved_plan(self):
+    def test_new_deck_requires_attached_or_automatic_same_chat_plan(self):
         self.assertIn("общий шлюз ҚМЖ/КСП", self.skill)
-        self.assertIn("подтверждённого учителем плана, созданного в текущем чате", self.skill)
+        self.assertIn("последнего успешно созданного и проверенного плана в текущем чате", self.skill)
         self.assertIn("lesson_plan_handoff", self.skill)
-        self.assertIn("approved_by_teacher", self.handoff)
+        self.assertIn("ready_for_derivatives", self.handoff)
+        self.assertNotIn("approved_by_teacher", self.handoff)
 
     def test_assessment_criteria_are_localized(self):
         self.assertIn("Бағалау критерийлері", self.skill)

@@ -22,10 +22,11 @@ class WorksheetSkillContractTests(unittest.TestCase):
         cls.cognitive = read("secondary/cognitive-levels.md")
         cls.safety = read("references/source-and-safety-policy.md")
 
-    def test_requires_attached_or_same_chat_approved_lesson_plan(self):
+    def test_requires_attached_or_automatic_same_chat_lesson_plan(self):
         self.assertIn("общий шлюз ҚМЖ/КСП", self.skill)
         self.assertIn("lesson_plan_handoff", self.skill)
-        self.assertIn("из текущего чата", self.skill)
+        self.assertIn("последнего успешно созданного и проверенного плана в текущем чате", self.skill)
+        self.assertIn("Не требовать повторной загрузки или фразы о принятии плана", self.skill)
 
     def test_every_task_has_a_descriptor(self):
         combined = "\n".join((
@@ -86,6 +87,14 @@ class WorksheetSkillContractTests(unittest.TestCase):
         self.assertIn("Не показывать ученику", self.skill)
         self.assertIn("ожидаемый ответ или продукт", self.cognitive)
         self.assertIn("типичную ошибку и корректирующую обратную связь", self.cognitive)
+
+    def test_interactive_answers_do_not_require_second_confirmation(self):
+        policy = read("../../references/interactive-question-policy.md")
+        self.assertIn("общему правилу интерактивных вопросов", self.skill)
+        self.assertIn("Ответ учителя на интерактивный раунд считается окончательным выбором", policy)
+        for phrase in ("келісемін", "согласен", "подтверждаю", "confirm"):
+            self.assertIn(phrase, policy)
+        self.assertIn("продолжить без второго подтверждения", self.skill)
 
 
 if __name__ == "__main__":

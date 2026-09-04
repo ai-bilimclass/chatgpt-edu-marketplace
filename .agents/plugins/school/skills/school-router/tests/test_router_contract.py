@@ -35,13 +35,13 @@ class RouterContractTests(unittest.TestCase):
         self.assertIn("Не заполнять пропуски предположениями", SKILL)
 
     def test_presentation_requires_lesson_plan(self):
-        self.assertIn("Прикреплённый ҚМЖ/КСП либо полный подтверждённый", MATRIX)
+        self.assertIn("Прикреплённый ҚМЖ/КСП либо полный автоматически подготовленный", MATRIX)
 
     def test_follow_up_is_localized_and_excludes_completed_product(self):
         for question in (
-            "Келесі ретте қандай оқу материалын дайындау қажет?",
-            "Какой учебный материал необходимо подготовить следующим?",
-            "What learning material should be prepared next?",
+            "Келесі кезекте қандай оқу материалын құрастыруды қалайсыз?",
+            "Какой учебный материал вы хотели бы подготовить следующим?",
+            "Which learning material would you like to prepare next?",
         ):
             self.assertIn(question, FOLLOW_UP)
         self.assertIn("убрать только что завершённый вид материала", FOLLOW_UP)
@@ -57,12 +57,26 @@ class RouterContractTests(unittest.TestCase):
         self.assertIn("survey_shown: true", SURVEY)
         self.assertIn("3 октября 2026 года", SURVEY)
         self.assertIn("Сауалнаманы толтыру", SURVEY)
-        self.assertIn("Пройти опрос", SURVEY)
+        self.assertIn("Заполнить опрос", SURVEY)
         self.assertIn("Complete the survey", SURVEY)
+        self.assertIn("***Құрметті ұстаз!", SURVEY)
+        self.assertIn("***Уважаемый педагог!", SURVEY)
+        self.assertIn("***Dear teacher", SURVEY)
+        self.assertIn("***[Сауалнаманы толтыру]", SURVEY)
         self.assertIn("teacher-survey-follow-up.md", SKILL)
 
     def test_secondary_ktp_requires_teacher_program(self):
         self.assertIn("Для 5–11 классов — загруженная учебная программа", MATRIX)
+
+    def test_ktp_year_is_fixed_and_not_requested(self):
+        self.assertIn('academic_year: "2026–2027"', SKILL)
+        self.assertIn("не задавать учителю вопрос об учебном годе", SKILL)
+        self.assertIn("Учебный год автоматически фиксируется", MATRIX)
+
+    def test_class_characteristics_is_preserved_for_next_products(self):
+        self.assertIn('class_characteristics: ""', SKILL)
+        self.assertIn("вопрос №6 с тремя предметно адаптированными вариантами", SKILL)
+        self.assertIn("последующим навыкам без повторного вопроса", SKILL)
 
     def test_lab_route_has_safety_gate(self):
         self.assertIn("При отсутствии безопасной процедуры практическую работу не генерировать", MATRIX)

@@ -12,22 +12,22 @@
 
 После показа установить `survey_shown: true` и больше не повторять приглашение в этом чате. Если четыре материала были созданы в разных чатах, надёжно суммировать их нельзя: межчатового пользовательского счётчика у навыка нет. После 3 октября 2026 года приглашение не показывать.
 
-Размещать приглашение после ссылки на готовый материал и перед общим вопросом о следующем учебном материале. Использовать только вариант на языке текущего запроса.
+Размещать приглашение после ссылки на готовый материал и перед общим вопросом о следующем учебном материале. Использовать только вариант на языке текущего запроса. Весь текст приглашения и ссылку оформить жирным курсивом средствами Markdown: `***текст***` и `***[название ссылки](URL)***`. Не объединять языковые версии в одном ответе.
 
 ## Қазақша
 
-Құрметті ұстаз! Ustaz BilimAI Mektep плагинін пайдаланғаныңызға рақмет. Сіздің жауаптарыңыз плагиннің мазмұны мен қолдану ыңғайлылығын жақсартуға көмектеседі. Толтыру уақыты: шамамен 3–5 минут. Егер де сауалнамадан өткен болсаңыз, әрі қарай қажетті оқу материалдарын құрастыра беріңіз.
+***Құрметті ұстаз! Ustaz BilimAI Mektep плагинін қолдану тәжірибесі туралы сауалнамаға қатысуға шақырамыз. Сіздің жауаптарыңыз плагиннің мазмұны мен оны қолдану ыңғайлылығын жақсартуға көмектеседі. Сауалнаманы толтыру уақыты — шамамен 3–5 минут. Егер сауалнаманы бұған дейін толтырған болсаңыз, қажетті оқу материалдарын құрастыруды жалғастыра беріңіз.***
 
-[Сауалнаманы толтыру](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)
+***[Сауалнаманы толтыру](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)***
 
 ## Русский
 
-Уважаемый педагог! Благодарим вас за использование плагина Ustaz BilimAI Mektep. Ваши ответы помогут улучшить содержание и удобство использования плагина. Время заполнения: около 3–5 минут.
+***Уважаемый педагог! Приглашаем вас принять участие в опросе об использовании плагина Ustaz BilimAI Mektep. Ваши ответы помогут улучшить содержание плагина и удобство работы с ним. Время заполнения опроса — около 3–5 минут. Если вы уже проходили этот опрос, продолжайте создавать необходимые учебные материалы.***
 
-[Пройти опрос](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)
+***[Заполнить опрос](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)***
 
 ## English
 
-Dear teacher! Thank you for using the Ustaz BilimAI Mektep plugin. Your responses will help us improve the plugin's content and ease of use. Completion time: approximately 3–5 minutes. If you have already completed the survey, please continue creating the learning materials you need.
+***Dear teacher, we invite you to take part in a survey about your experience using the Ustaz BilimAI Mektep plugin. Your responses will help us improve the plugin's content and ease of use. The survey takes approximately 3–5 minutes to complete. If you have already completed it, please continue creating the learning materials you need.***
 
-[Complete the survey](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)
+***[Complete the survey](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)***

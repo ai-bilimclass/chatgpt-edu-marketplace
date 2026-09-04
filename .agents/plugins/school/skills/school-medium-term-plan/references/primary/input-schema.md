@@ -75,6 +75,8 @@
 
 Обязательные ключи: `subject`, `grade`, `education_level`, `instruction_language`, `profile_direction`, `curriculum_order`, `curriculum_appendix`, `curriculum_revision_date`, `curriculum_plan_order`, `curriculum_plan_variant`, `curriculum_plan_revision_date`, `subject_profile`, `language`, `requested_language`, `objectives_language`, `language_mismatch_confirmed`, `academic_year`, `hours_per_week`, `total_hours`, `lesson_weekdays`, `content_source`, `content_source_type`, `teacher_program_file`, `cross_cutting_themes`, `lesson_topics_confirmed_by_teacher`, `official_program_verified`, `source_content_complete`, `source_conflicts`, `calendar_verified`, `calendar_source`, `non_instruction_dates`, `public_holidays`, `summative_assessment_required`, `quarters`.
 
+`academic_year` — фиксированное внутреннее значение `2026–2027`. Заполнять автоматически; не запрашивать и не просить подтвердить у учителя.
+
 `content_source_type` должен быть `teacher_uploaded_program`, `teacher_provided_objectives` или `teacher_provided_sections_and_topics`. Последнее значение разрешено только для `Әліппе/Букварь` 1 класса и требует непустой `teacher_program_file`, обозначающий загруженный или вставленный учителем полный источник разделов, тем и целей. Единичная цель, тема, учебник или память модели не удовлетворяют шлюзу годового КТП.
 
 `cross_cutting_themes` — обязательный непустой список ортақ тақырыптар для выбранного класса. Значение `section` каждой строки урока должно дословно совпадать с одним элементом этого списка. Тему урока формировать методически по связи соответствующей ортақ тақырып и точной учебной цели.

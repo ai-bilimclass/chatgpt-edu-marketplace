@@ -46,7 +46,7 @@ class AssessmentSkillContractTests(unittest.TestCase):
         self.assertIn("Источники, предоставленные пользователем", self.moderation)
 
     def test_methodology_does_not_replace_assessment_logic(self):
-        self.assertIn("Если подтверждённый `lesson_plan_handoff` содержит блок `methodology`", self.skill)
+        self.assertIn("Если готовый `lesson_plan_handoff` содержит блок `methodology`", self.skill)
         self.assertIn("не перестраивать самостоятельную логику", self.skill)
 
 

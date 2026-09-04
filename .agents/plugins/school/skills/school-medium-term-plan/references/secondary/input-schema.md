@@ -68,6 +68,8 @@
 
 Обязательные ключи: `subject`, `grade`, `language`, `requested_language`, `objectives_language`, `language_mismatch_confirmed`, `academic_year`, `hours_per_week`, `total_hours`, `lesson_weekdays`, `content_source`, `content_source_type`, `teacher_program_file`, `official_program_verified`, `source_content_complete`, `source_conflicts`, `calendar_verified`, `calendar_source`, `non_instruction_dates`, `public_holidays`, `quarters`.
 
+`academic_year` — фиксированное внутреннее значение `2026–2027`. Заполнять автоматически; не запрашивать и не просить подтвердить у учителя.
+
 `content_source_type` должен быть ровно `teacher_uploaded_program`, а `teacher_program_file` — непустым именем реально загруженного учителем файла учебной программы. Текстовые цели, интернет-ссылка или автоматически найденная программа не удовлетворяют этому шлюзу.
 
 `requested_language` — первоначально выбранный пользователем язык документа: `ru`, `kk`, `en` или `trilingual`. `objectives_language` — язык полных формулировок целей после анализа источника: `ru`, `kk`, `en` или `mixed`. `language` — окончательно подтверждённый язык выходного документа.

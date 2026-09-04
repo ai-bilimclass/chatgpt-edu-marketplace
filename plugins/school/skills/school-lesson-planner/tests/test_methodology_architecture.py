@@ -58,6 +58,14 @@ class MethodologyArchitectureTests(unittest.TestCase):
         ):
             self.assertIn(field, self.handoff)
 
+    def test_same_chat_continuity_notice_is_non_blocking_and_trilingual(self):
+        self.assertIn("continuity_notice_shown", self.handoff)
+        self.assertIn("бір сынып пен пәнге арналған", self.handoff)
+        self.assertIn("для одного класса и предмета", self.handoff)
+        self.assertIn("for the same class and subject", self.handoff)
+        self.assertIn("не просить согласия, подтверждения", self.handoff)
+        self.assertIn("Не утверждать, что план сохранён в постоянной памяти", self.handoff)
+
     def test_required_trilingual_terms_exist(self):
         for term in (
             "Active Learning Methods",
