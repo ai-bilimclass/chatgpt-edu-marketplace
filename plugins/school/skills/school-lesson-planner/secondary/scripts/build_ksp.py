@@ -98,14 +98,14 @@ APPENDIX_REQUIRED = {
 }
 LESSON_DURATION_MINUTES = 40
 REQUIRED_ROOT = {
-    "intake_verification", "language", "lesson_count", "subject",
+    "intake_verification", "instruction_language", "language", "lesson_count", "subject",
     "grade", "section", "topic", "class_size", "teacher_experience",
     "qualification_category", "class_characteristics",
     "learning_objectives", "lesson_objectives", "assessment_criteria",
     "stages", "methodological_appendix",
 }
 REQUIRED_INTAKE_FIELDS = {
-    "subject", "grade", "language", "section", "topic", "learning_objectives",
+    "subject", "grade", "instruction_language", "section", "topic", "learning_objectives",
     "lesson_count", "class_size", "teacher_experience",
     "qualification_category", "class_characteristics",
 }
@@ -292,15 +292,15 @@ def validate_intake(value: Any) -> dict[str, Any]:
 def validate_input(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise KSPError("The JSON root must be an object.")
-    if "lesson_duration_minutes" in raw:
-        raise KSPError(
-            "lesson_duration_minutes is not accepted; every lesson is fixed at 40 minutes."
-        )
+    duration = raw.get("lesson_duration_minutes", LESSON_DURATION_MINUTES)
+    if isinstance(duration, bool) or not isinstance(duration, int) or duration <= 0:
+        raise KSPError("lesson_duration_minutes must be a positive integer when explicitly supplied.")
     missing = sorted(key for key in REQUIRED_ROOT if key not in raw or not nonempty(raw[key]))
     if missing:
         raise KSPError("Missing required fields: " + ", ".join(missing))
 
     data = deepcopy(raw)
+    data["lesson_duration_minutes"] = duration
     data["intake_verification"] = validate_intake(data["intake_verification"])
     data["language"] = normalized_language(data["language"])
     if PRACTICAL_SUBJECT.search(str(data["subject"])):
@@ -365,10 +365,16 @@ def validate_input(raw: Any) -> dict[str, Any]:
                         "Use the localized final-stage term Reflection/Рефлексия; "
                         "use reflection and actionable feedback; do not use former labels for the final stage."
                     )
-    if total != LESSON_DURATION_MINUTES:
+    if total != data["lesson_duration_minutes"]:
         raise KSPError(
-            f"Stage minutes total {total}, but every lesson must total {LESSON_DURATION_MINUTES}."
+            f"Stage minutes total {total}, but this lesson must total {data['lesson_duration_minutes']}."
         )
+
+    instruction_language = str(data["instruction_language"]).strip()
+    if instruction_language not in {"ru", "kk", "en"}:
+        raise KSPError("instruction_language must be ru, kk, or en.")
+    if data["language"] != instruction_language and data.get("document_language_explicit") is not True:
+        raise KSPError("Document language must match instruction_language unless the teacher explicitly requested an override.")
 
     appendix = data["methodological_appendix"]
     if not isinstance(appendix, dict):
@@ -867,7 +873,7 @@ def build(data: dict[str, Any], output: Path) -> dict[str, Any]:
     doc.core_properties.author = ""
     doc.core_properties.last_modified_by = ""
     doc.core_properties.keywords = (
-        f"language={data['language']};lesson-duration={LESSON_DURATION_MINUTES};"
+        f"language={data['language']};lesson-duration={data['lesson_duration_minutes']};"
         f"requested-lesson-count={data['lesson_count']};"
         f"stage-total={sum(stage['minutes'] for stage in data['stages'])}"
     )
@@ -894,6 +900,7 @@ def example(*, test_fixture: bool = False) -> dict[str, Any]:
                 "Replace with real teacher messages or attached-document evidence."
             ),
         },
+        "instruction_language": "ru",
         "language": "ru",
         "subject": "Алгебра",
         "organization": "",

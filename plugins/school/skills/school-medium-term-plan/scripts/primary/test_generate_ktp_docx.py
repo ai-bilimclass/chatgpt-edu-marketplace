@@ -246,6 +246,8 @@ class DynamicHoursValidationTest(unittest.TestCase):
             "language": "trilingual",
             "requested_language": "trilingual",
             "objectives_language": "mixed",
+            "instruction_language": "mixed",
+            "language_mismatch_confirmed": True,
         })
         data.pop("assessment_language", None)
         validate(data)
@@ -264,6 +266,7 @@ class DynamicHoursValidationTest(unittest.TestCase):
             "requested_language": "trilingual",
             "objectives_language": "mixed",
             "instruction_language": "mixed",
+            "language_mismatch_confirmed": True,
             "assessment_language": "en",
         })
         validate(data)
@@ -277,6 +280,7 @@ class DynamicHoursValidationTest(unittest.TestCase):
             "requested_language": "trilingual",
             "objectives_language": "mixed",
             "instruction_language": "mixed",
+            "language_mismatch_confirmed": True,
         })
         data.pop("assessment_language", None)
         validate(data)
@@ -359,7 +363,7 @@ class DynamicHoursValidationTest(unittest.TestCase):
             notes = [row.cells[6].text.strip() for row in document.tables[0].rows]
             self.assertFalse(any(contains_primary_summative_marker(note) for note in notes))
 
-    def test_requires_explicit_choice_when_english_and_objective_languages_differ(self):
+    def test_objective_language_does_not_override_instruction_language(self):
         data = make_data(1)
         data.update({
             "language": "en",
@@ -367,14 +371,13 @@ class DynamicHoursValidationTest(unittest.TestCase):
             "objectives_language": "kk",
             "instruction_language": "en",
         })
-        with self.assertRaisesRegex(ValueError, "ағылшынша"):
-            validate(data)
+        validate(data)
 
     def test_accepts_english_after_explicit_mismatch_choice_without_assessment_labels(self):
         data = make_data(1)
         data.update({
             "language": "en",
-            "requested_language": "ru",
+            "requested_language": "en",
             "objectives_language": "en",
             "instruction_language": "en",
             "language_mismatch_confirmed": True,
@@ -628,20 +631,25 @@ class DynamicHoursValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "replacement character U\\+FFFD"):
             validate(data)
 
-    def test_requires_explicit_language_choice_for_ru_kk_mismatch(self):
+    def test_objective_language_mismatch_does_not_trigger_document_language_question(self):
         data = make_data(1)
         data["requested_language"] = "ru"
         data["objectives_language"] = "kk"
-        with self.assertRaisesRegex(ValueError, "КТП қай тілде құрастырылсын"):
-            validate(data)
+        validate(data)
 
-    def test_accepts_explicit_language_choice_after_ru_kk_mismatch(self):
+    def test_accepts_explicit_document_language_override(self):
         data = make_data(1)
         data["requested_language"] = "ru"
         data["objectives_language"] = "kk"
         data["language"] = "kk"
         data["language_mismatch_confirmed"] = True
         validate(data)
+
+    def test_rejects_unconfirmed_document_language_override(self):
+        data = make_data(1)
+        data["language"] = "kk"
+        with self.assertRaisesRegex(ValueError, "Output language must match"):
+            validate(data)
 
     def test_holiday_lesson_moves_to_next_lesson_and_is_marked(self):
         data = make_data(1)
@@ -688,6 +696,7 @@ class DynamicHoursValidationTest(unittest.TestCase):
         data["language"] = "kk"
         data["requested_language"] = "kk"
         data["objectives_language"] = "kk"
+        data["instruction_language"] = "kk"
         holiday_dates = [
             "2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22",
             "2026-09-29", "2026-10-06", "2026-10-13", "2026-10-20",
@@ -717,6 +726,7 @@ class DynamicHoursValidationTest(unittest.TestCase):
         data["language"] = "kk"
         data["requested_language"] = "kk"
         data["objectives_language"] = "kk"
+        data["instruction_language"] = "kk"
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "teacher-transfer.docx"
             build(data, output)

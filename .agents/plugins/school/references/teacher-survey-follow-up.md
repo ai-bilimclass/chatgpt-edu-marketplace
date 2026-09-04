@@ -2,32 +2,34 @@
 
 ## Условие показа
 
-Вести только в текущем чате внутренние поля `completed_materials_count` и `survey_shown`. После успешного создания и передачи материала профильным навыком увеличить `completed_materials_count` на один. Не учитывать `school-router`, проверки без создания нового материала, методическую консультацию без созданного учебного материала, ошибки, отменённые или незавершённые результаты.
+Вести только в текущем чате внутренние поля `completed_materials_count` и `survey_shown`. После успешного создания и передачи КТП, ҚМЖ/КСП/Lesson Plan, обычного рабочего листа, практического или лабораторного листа, оценочного материала либо презентации увеличить `completed_materials_count` на один.
 
-Показать приглашение к опросу один раз сразу после передачи четвёртого успешно созданного материала, если одновременно выполнены условия:
+Не увеличивать счётчик за маршрутизацию, первоначальный выбор продукта, методическую консультацию, проверку готового документа без создания нового материала, ошибку, отменённую или незавершённую генерацию.
+
+Показать приглашение один раз сразу после передачи четвёртого успешно созданного материала, если одновременно выполнены условия:
 
 - текущая дата не позднее **3 октября 2026 года** включительно;
-- `completed_materials_count >= 4`;
+- `completed_materials_count == 4`;
 - `survey_shown` имеет значение `false`.
 
-После показа установить `survey_shown: true` и больше не повторять приглашение в этом чате. Если четыре материала были созданы в разных чатах, надёжно суммировать их нельзя: межчатового пользовательского счётчика у навыка нет. После 3 октября 2026 года приглашение не показывать.
+Сразу после показа установить `survey_shown: true`; после пятого и следующих материалов приглашение не повторять. Не спрашивать, проходил ли учитель опрос, не требовать согласия и не блокировать дальнейшую работу. Если четыре материала созданы в разных чатах, не суммировать их между чатами. После 3 октября 2026 года приглашение не показывать.
 
-Размещать приглашение после ссылки на готовый материал и перед общим вопросом о следующем учебном материале. Использовать только вариант на языке текущего запроса. Весь текст приглашения и ссылку оформить жирным курсивом средствами Markdown: `***текст***` и `***[название ссылки](URL)***`. Не объединять языковые версии в одном ответе.
+Размещать приглашение после ссылки на четвёртый готовый материал и перед обязательным общим вопросом о следующем учебном материале. Использовать только вариант на языке текущего запроса. Текст приглашения и подпись ссылки оформить жирным курсивом. Не объединять языковые версии.
 
 ## Қазақша
 
 ***Құрметті ұстаз! Ustaz BilimAI Mektep плагинін қолдану тәжірибесі туралы сауалнамаға қатысуға шақырамыз. Сіздің жауаптарыңыз плагиннің мазмұны мен оны қолдану ыңғайлылығын жақсартуға көмектеседі. Сауалнаманы толтыру уақыты — шамамен 3–5 минут. Егер сауалнаманы бұған дейін толтырған болсаңыз, қажетті оқу материалдарын құрастыруды жалғастыра беріңіз.***
 
-***[Сауалнаманы толтыру](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)***
+[***Сауалнаманы толтыру***](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)
 
 ## Русский
 
 ***Уважаемый педагог! Приглашаем вас принять участие в опросе об использовании плагина Ustaz BilimAI Mektep. Ваши ответы помогут улучшить содержание плагина и удобство работы с ним. Время заполнения опроса — около 3–5 минут. Если вы уже проходили этот опрос, продолжайте создавать необходимые учебные материалы.***
 
-***[Заполнить опрос](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)***
+[***Заполнить опрос***](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)
 
 ## English
 
-***Dear teacher, we invite you to take part in a survey about your experience using the Ustaz BilimAI Mektep plugin. Your responses will help us improve the plugin's content and ease of use. The survey takes approximately 3–5 minutes to complete. If you have already completed it, please continue creating the learning materials you need.***
+***Dear teacher, we invite you to take part in a survey about your experience using the Ustaz BilimAI Mektep plugin. Your responses will help us improve the plugin’s content and ease of use. The survey takes approximately 3–5 minutes to complete. If you have already completed it, please continue creating the learning materials you need.***
 
-***[Complete the survey](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)***
+[***Complete the survey***](https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header)

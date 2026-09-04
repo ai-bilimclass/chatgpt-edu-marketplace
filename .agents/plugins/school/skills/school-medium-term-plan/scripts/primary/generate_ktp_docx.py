@@ -515,27 +515,14 @@ def validate(data: dict[str, Any]) -> None:
         raise ValueError("objectives_language must be ru, kk, en, or mixed")
     if not isinstance(data["language_mismatch_confirmed"], bool):
         raise ValueError("language_mismatch_confirmed must be boolean")
-    ru_kk_mismatch = (
-        requested_language in {"ru", "kk"}
-        and objectives_language in {"ru", "kk"}
-        and requested_language != objectives_language
-    )
-    if ru_kk_mismatch and data["language_mismatch_confirmed"] is not True:
-        raise ValueError("КТП қай тілде құрастырылсын: қазақша немесе орысша?")
-    if ru_kk_mismatch and str(data["language"]) not in {"ru", "kk"}:
-        raise ValueError("A confirmed Russian/Kazakh mismatch requires final language ru or kk")
-    other_language_mismatch = (
-        requested_language in {"ru", "kk", "en"}
-        and objectives_language in {"ru", "kk", "en"}
-        and requested_language != objectives_language
-        and not ru_kk_mismatch
-    )
-    if other_language_mismatch and data["language_mismatch_confirmed"] is not True:
-        raise ValueError(
-            "КТП қай тілде құрастырылсын: қазақша, орысша немесе ағылшынша?"
-        )
-    if other_language_mismatch and str(data["language"]) not in {"ru", "kk", "en"}:
-        raise ValueError("A confirmed language mismatch requires final language ru, kk, or en")
+    instruction_language = str(data["instruction_language"]).strip()
+    expected_requested_language = "trilingual" if instruction_language == "mixed" else instruction_language
+    if requested_language != expected_requested_language:
+        raise ValueError("requested_language must mirror instruction_language; do not ask document language separately")
+    output_language = str(data["language"]).strip()
+    explicit_override = data["language_mismatch_confirmed"] is True
+    if output_language != instruction_language and not explicit_override:
+        raise ValueError("Output language must match instruction_language unless the teacher explicitly requested another document language")
     if "color_theme" in data and data["color_theme"] != {"mode": "official-monochrome"}:
         raise ValueError("Only official monochrome formatting is allowed")
     source_type = data["content_source_type"]

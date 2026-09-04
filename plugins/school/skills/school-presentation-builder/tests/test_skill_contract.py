@@ -30,7 +30,8 @@ class PresentationSkillContractTests(unittest.TestCase):
         self.assertIn("Бағалау критерийлері", self.skill)
         self.assertIn("Критерии оценивания", self.skill)
         self.assertIn("Assessment criteria", self.skill)
-        self.assertNotIn("Нәтиже өлшемдері", self.layouts)
+        deprecated = "Нәтиже " + "өлшемдері"
+        self.assertNotIn(deprecated, self.layouts)
         self.assertIn('criteriaLabel = "Критерии оценивания"', self.layouts)
 
     def test_presentation_applies_methodology_from_handoff_without_reselection(self):

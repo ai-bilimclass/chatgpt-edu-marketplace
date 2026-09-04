@@ -36,6 +36,7 @@ class BuildKSPTests(unittest.TestCase):
 
     def test_kazakh_source_status_is_normalized(self):
         data = self.data()
+        data["instruction_language"] = "kk"
         data["language"] = "kk"
         data["methodological_appendix"]["knowledge_skills_analysis"] = self.localized_knowledge_items("kk")
         data["methodological_appendix"]["methodology_application"] = (
@@ -181,11 +182,35 @@ class BuildKSPTests(unittest.TestCase):
         data["intake_verification"]["confirmed_fields"].append("practical_resources")
         BUILD_KSP.validate_input(data)
 
-    def test_duration_override_is_rejected(self):
+    def test_explicit_duration_override_is_preserved(self):
         data = self.data()
         data["lesson_duration_minutes"] = 45
-        with self.assertRaisesRegex(BUILD_KSP.KSPError, "fixed at 40"):
+        data["stages"][1]["minutes"] += 5
+        validated = BUILD_KSP.validate_input(data)
+        self.assertEqual(validated["lesson_duration_minutes"], 45)
+
+    def test_duration_defaults_to_40(self):
+        validated = BUILD_KSP.validate_input(self.data())
+        self.assertEqual(validated["lesson_duration_minutes"], 40)
+
+    def test_instruction_language_is_required(self):
+        data = self.data()
+        del data["instruction_language"]
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "instruction_language"):
             BUILD_KSP.validate_input(data)
+
+    def test_document_language_follows_instruction_language_without_override(self):
+        data = self.data()
+        data["language"] = "kk"
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "must match instruction_language"):
+            BUILD_KSP.validate_input(data)
+
+    def test_explicit_document_language_override_is_accepted(self):
+        data = self.data()
+        data["language"] = "kk"
+        data["document_language_explicit"] = True
+        data["methodological_appendix"]["knowledge_skills_analysis"] = self.localized_knowledge_items("kk")
+        BUILD_KSP.validate_input(data)
 
     def test_stage_time_mismatch_is_rejected(self):
         data = self.data()
@@ -209,6 +234,7 @@ class BuildKSPTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             for language in ("ru", "kk", "en"):
                 data = self.data()
+                data["instruction_language"] = language
                 data["language"] = language
                 data["methodological_appendix"]["knowledge_skills_analysis"] = self.localized_knowledge_items(language)
                 output = Path(directory) / f"sample-{language}.docx"

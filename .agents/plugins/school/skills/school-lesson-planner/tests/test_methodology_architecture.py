@@ -58,11 +58,12 @@ class MethodologyArchitectureTests(unittest.TestCase):
         ):
             self.assertIn(field, self.handoff)
 
-    def test_same_chat_continuity_notice_is_non_blocking_and_trilingual(self):
+    def test_same_chat_continuity_notice_is_non_blocking_and_monolingual(self):
         self.assertIn("continuity_notice_shown", self.handoff)
-        self.assertIn("бір сынып пен пәнге арналған", self.handoff)
-        self.assertIn("для одного класса и предмета", self.handoff)
+        self.assertIn("Бір сынып пен бір пәнге арналған", self.handoff)
+        self.assertIn("для одного класса и одного предмета", self.handoff)
         self.assertIn("for the same class and subject", self.handoff)
+        self.assertIn("не показывать три языковые версии одновременно", self.handoff)
         self.assertIn("не просить согласия, подтверждения", self.handoff)
         self.assertIn("Не утверждать, что план сохранён в постоянной памяти", self.handoff)
 
