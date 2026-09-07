@@ -23,6 +23,7 @@ class MethodologyArchitectureTests(unittest.TestCase):
         cls.techniques = read(ROOT / "references" / "practical-techniques-index.md")
         cls.interactions = read(ROOT / "references" / "interaction-structures.md")
         cls.episode = read(ROOT / "references" / "practical-episode-contract.md")
+        cls.search_policy = read(ROOT / "references" / "practical-technique-search-policy.md")
 
     def test_six_core_and_three_specialized_directions_exist(self):
         for filename in (
@@ -160,6 +161,37 @@ class MethodologyArchitectureTests(unittest.TestCase):
         ):
             self.assertIn(field, self.episode)
         self.assertIn("PASS | REVISE | LIMITATION", self.episode)
+
+    def test_hybrid_search_uses_builtin_catalog_first(self):
+        for phrase in (
+            "Встроенный каталог остаётся основным", "Не выполнять веб-поиск",
+            "ни один встроенный приём", "учитель прямо просит",
+            "не должен задерживать результат",
+        ):
+            self.assertIn(phrase, self.search_policy)
+
+    def test_hybrid_search_cannot_reconstruct_official_requirements(self):
+        for phrase in (
+            "официальной цели обучения", "правила оценивания", "подменять учебную программу",
+            "персональные данные учеников", "не выдумывать найденный источник",
+        ):
+            self.assertIn(phrase, self.search_policy)
+
+    def test_external_candidate_has_provenance_and_status(self):
+        for field in (
+            "candidate_id", "search_reason", "source_url", "source_title", "organization",
+            "author", "published_or_updated_at", "checked_at", "evidence_type",
+            "source_tier", "status", "individual_evidence", "limitations",
+            "adaptation_summary", "license_or_use_notes",
+        ):
+            self.assertIn(field, self.search_policy)
+        for status in ("verified", "usable_with_limits", "rejected"):
+            self.assertIn(status, self.search_policy)
+
+    def test_external_technique_is_not_persisted_automatically(self):
+        self.assertIn("не добавлять автоматически в постоянный встроенный каталог", self.search_policy)
+        self.assertIn("действует только в текущем плане", self.search_policy)
+        self.assertIn("episodes[].technique_id", self.handoff)
 
 
 if __name__ == "__main__":
