@@ -39,6 +39,14 @@ class PresentationSkillContractTests(unittest.TestCase):
         self.assertIn("Не выбирать другую основную методику", self.skill)
         self.assertIn("не являются активным методом обучения", self.skill)
 
+    def test_version_two_handoff_is_synchronized_to_slides(self):
+        for field in ("schema_version", "content_boundaries", "episodes", "canonical_tasks", "canonical_answers"):
+            self.assertIn(field, self.skill)
+        self.assertIn("episode_id → canonical_task_id → slide_id", self.skill)
+        self.assertIn("source_lesson_content_version", self.skill)
+        self.assertIn('status: "requires_regeneration"', self.skill)
+        self.assertIn("без заявления об эпизодной синхронизации", self.skill)
+
     def test_only_one_combined_clarification_round(self):
         self.assertIn("не более одного объединённого уточняющего вопроса", self.skill)
         self.assertIn("Не задавать эти вопросы", self.skill)

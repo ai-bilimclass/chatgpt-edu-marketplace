@@ -43,6 +43,14 @@ class WorksheetSkillContractTests(unittest.TestCase):
         self.assertIn("Если handoff содержит блок `methodology`", self.skill)
         self.assertIn("Не выбирать заново основной или специализированный метод", self.skill)
 
+    def test_version_two_handoff_is_synchronized_to_tasks(self):
+        for field in ("schema_version", "content_boundaries", "episodes", "canonical_tasks", "canonical_answers"):
+            self.assertIn(field, self.skill)
+        self.assertIn("episode_id → canonical_task_id → worksheet_task_id", self.skill)
+        self.assertIn("source_lesson_content_version", self.skill)
+        self.assertIn('status: "requires_regeneration"', self.skill)
+        self.assertIn("без заявления об эпизодной синхронизации", self.skill)
+
     def test_all_four_routes_are_declared(self):
         for path in (
             "primary/regular-worksheet.md",

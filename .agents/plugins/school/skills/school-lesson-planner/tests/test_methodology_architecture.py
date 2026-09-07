@@ -61,6 +61,22 @@ class MethodologyArchitectureTests(unittest.TestCase):
         ):
             self.assertIn(field, self.handoff)
 
+    def test_versioned_handoff_contains_release_two_contract(self):
+        for field in (
+            'schema_version: "2.0"', "lesson_content_version", "content_boundaries",
+            "episodes", "canonical_tasks", "canonical_answers", "source_bindings",
+            "validation_status", "unresolved_limitations", "derivative_registry",
+        ):
+            self.assertIn(field, self.handoff)
+        self.assertIn('status: "requires_regeneration"', self.handoff)
+        self.assertIn("контракт версии 1", self.handoff)
+
+    def test_handoff_maps_episodes_to_derivative_materials(self):
+        for field in ("worksheet_task_id", "slide_id", "source_lesson_content_version"):
+            self.assertIn(field, self.handoff)
+        self.assertIn("episode_id → worksheet_task_id", self.handoff)
+        self.assertIn("episode_id → slide_id", self.handoff)
+
     def test_same_chat_continuity_notice_is_non_blocking_and_monolingual(self):
         self.assertIn("continuity_notice_shown", self.handoff)
         self.assertIn("Бір сынып пен бір пәнге арналған", self.handoff)
