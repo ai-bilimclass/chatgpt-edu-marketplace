@@ -20,6 +20,9 @@ class MethodologyArchitectureTests(unittest.TestCase):
         cls.audit = read(ROOT / "references" / "methodology-audit.md")
         cls.protocol = read(ROOT / "references" / "lesson-design-protocol.md")
         cls.kagan = read(ROOT / "references" / "methods" / "kagan-structures.md")
+        cls.techniques = read(ROOT / "references" / "practical-techniques-index.md")
+        cls.interactions = read(ROOT / "references" / "interaction-structures.md")
+        cls.episode = read(ROOT / "references" / "practical-episode-contract.md")
 
     def test_six_core_and_three_specialized_directions_exist(self):
         for filename in (
@@ -103,6 +106,44 @@ class MethodologyArchitectureTests(unittest.TestCase):
         self.assertIn("15. **Рефлексия учителя:**", self.protocol)
         self.assertIn("Метапознание, закрепление и перенос", self.audit)
         self.assertIn("Ресурсы, цифровая среда и профессиональная этика", self.audit)
+
+    def test_eight_thinking_functions_exist(self):
+        for function_id in (
+            "understand_and_model", "retrieve_and_check", "compare_and_classify",
+            "argue_and_evaluate", "read_and_transform", "apply_and_solve",
+            "investigate_and_create", "analyze_and_improve",
+        ):
+            self.assertIn(function_id, self.techniques)
+
+    def test_catalog_has_twelve_universal_and_five_conditional_techniques(self):
+        universal = (
+            "model-guided-independent", "think-aloud", "retrieval-no-prompt",
+            "explain-own-words", "comparison-table", "claim-evidence-reasoning",
+            "example-counterexample", "predict-test-explain", "real-life-task",
+            "find-explain-error", "criteria-check-revise", "exit-ticket",
+        )
+        conditional = ("jigsaw", "scamper", "pops", "venn-diagram", "case-method")
+        for technique_id in universal + conditional:
+            self.assertIn(f"`{technique_id}`", self.techniques)
+        self.assertIn("12 универсальных приёмов", self.techniques)
+        self.assertIn("5 условных приёмов", self.techniques)
+
+    def test_interaction_structures_are_separate_and_accountable(self):
+        for structure_id in ("think-pair-share", "peer-teaching", "learning-stations", "gallery-walk"):
+            self.assertIn(structure_id, self.interactions)
+        self.assertIn("не является мыслительной функцией", self.interactions)
+        self.assertIn("индивидуальное доказательство", self.interactions.lower())
+
+    def test_practical_episode_contract_is_complete(self):
+        for field in (
+            "content_boundaries", "episode_id", "objective_refs", "thinking_process",
+            "technique_id", "interaction_id", "teacher_instruction", "student_actions",
+            "individual_evidence", "expected_response", "likely_misconceptions",
+            "feedback_and_retry", "next_teacher_action_if_met",
+            "next_teacher_action_if_not_met", "validation_status", "limitations",
+        ):
+            self.assertIn(field, self.episode)
+        self.assertIn("PASS | REVISE | LIMITATION", self.episode)
 
 
 if __name__ == "__main__":
