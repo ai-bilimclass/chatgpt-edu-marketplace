@@ -82,9 +82,24 @@ class RouterContractTests(unittest.TestCase):
         self.assertIn("после пятого и следующих материалов", SURVEY)
         self.assertIn("3 октября 2026 года", SURVEY)
         self.assertIn("перед обязательным общим вопросом", SURVEY)
+        self.assertIn("увеличить `completed_materials_count` ровно на один", SURVEY)
+        self.assertIn("Не увеличивать счётчик повторно", SURVEY)
         for label in ("[***Сауалнаманы толтыру***]", "[***Заполнить опрос***]", "[***Complete the survey***]"):
             self.assertIn(label, SURVEY)
         self.assertEqual(3, SURVEY.count("https://docs.google.com/forms/d/e/1FAIpQLSchaV5hHSVebvD_IRWUE5XZDWPLVPCUUDfOCikoLDf3IRtUAQ/viewform?usp=header"))
+
+    def test_survey_copy_is_exact_in_all_supported_languages(self):
+        exact_messages = (
+            "***Құрметті ұстаз! Ustaz BilimAI Mektep плагинін қолдану тәжірибесі туралы сауалнамаға қатысуға шақырамыз. Сіздің жауаптарыңыз плагиннің мазмұны мен оны қолдану ыңғайлылығын жақсартуға көмектеседі. Сауалнаманы толтыру уақыты — шамамен 3–5 минут. Егер сауалнаманы бұған дейін толтырған болсаңыз, қажетті оқу материалдарын құрастыруды жалғастыра беріңіз.***",
+            "***Уважаемый педагог! Приглашаем вас принять участие в опросе об использовании плагина Ustaz BilimAI Mektep. Ваши ответы помогут улучшить содержание плагина и удобство работы с ним. Время заполнения опроса — около 3–5 минут. Если вы уже проходили этот опрос, продолжайте создавать необходимые учебные материалы.***",
+            "***Dear teacher, we invite you to take part in a survey about your experience using the Ustaz BilimAI Mektep plugin. Your responses will help us improve the plugin’s content and ease of use. The survey takes approximately 3–5 minutes to complete. If you have already completed it, please continue creating the learning materials you need.***",
+        )
+        for message in exact_messages:
+            self.assertIn(message, SURVEY)
+
+    def test_survey_counted_materials_are_explicit(self):
+        for material in ("КТП", "ҚМЖ/КСП", "обычного рабочего листа", "практического или лабораторного листа", "оценочного материала", "презентации"):
+            self.assertIn(material, SURVEY)
 
     def test_survey_excludes_non_material_events(self):
         for excluded in ("маршрутизацию", "методическую консультацию", "проверку готового документа", "ошибку", "отменённую", "незавершённую"):
