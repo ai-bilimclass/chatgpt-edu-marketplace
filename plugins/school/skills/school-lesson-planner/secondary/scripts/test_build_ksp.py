@@ -220,9 +220,77 @@ class BuildKSPTests(unittest.TestCase):
 
     def test_old_exit_ticket_term_is_rejected(self):
         data = self.data()
-        data["stages"][-1]["assessment"] = "Выходной билет"
+        data["stages"][-1]["teacher_actions"] = ["Организует выходной билет."]
         with self.assertRaisesRegex(BUILD_KSP.KSPError, "Reflection"):
             BUILD_KSP.validate_input(data)
+
+    def test_schema_3_missing_descriptor_is_rejected(self):
+        data = self.data()
+        del data["stages"][0]["tasks"][0]["descriptor"]
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "descriptor"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_3_duplicate_task_id_is_rejected(self):
+        data = self.data()
+        data["stages"][1]["tasks"][0]["canonical_task_id"] = "task-01"
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "Duplicate canonical_task_id"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_3_unknown_objective_reference_is_rejected(self):
+        data = self.data()
+        data["stages"][0]["tasks"][0]["objective_refs"] = ["7.4.9.9"]
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "not supplied by the teacher"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_3_descriptor_must_not_repeat_instruction(self):
+        data = self.data()
+        task = data["stages"][0]["tasks"][0]
+        task["descriptor"] = task["instruction"]
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "repeats the instruction"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_3_feedback_phrase_is_not_a_descriptor(self):
+        data = self.data()
+        data["stages"][0]["tasks"][0]["descriptor"] = "Устная обратная связь"
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "instead of a descriptor"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_3_learning_stage_requires_task(self):
+        data = self.data()
+        data["stages"][0]["tasks"] = []
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "requires at least one task"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_3_organization_stage_may_have_no_task(self):
+        data = self.data()
+        data["stages"][0]["activity_type"] = "organization"
+        data["stages"][0]["tasks"] = []
+        BUILD_KSP.validate_input(data)
+
+    def test_schema_3_repeated_descriptor_is_warning(self):
+        data = self.data()
+        data["stages"][1]["tasks"][0]["descriptor"] = data["stages"][0]["tasks"][0]["descriptor"]
+        validated = BUILD_KSP.validate_input(data)
+        self.assertTrue(validated["validation_warnings"])
+
+    def test_schema_3_rejects_method_markup(self):
+        data = self.data()
+        data["stages"][0]["methods"][0]["name"] = "***Метод/приём: Вспомни***"
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "without markup or prefix"):
+            BUILD_KSP.validate_input(data)
+
+    def test_schema_2_is_accepted_as_legacy_unverified(self):
+        data = self.data()
+        data["schema_version"] = "2.0"
+        for stage in data["stages"]:
+            method_lines = [f"***Метод/приём: {item['name']}***" for item in stage.pop("methods")]
+            tasks = stage.pop("tasks")
+            stage.pop("activity_type")
+            stage["teacher_actions"] = method_lines + stage["teacher_actions"]
+            stage["learner_actions"] = [item["learner_action"] for item in tasks]
+            stage["assessment"] = [item["descriptor"] for item in tasks]
+        validated = BUILD_KSP.validate_input(data)
+        self.assertEqual(validated["validation_status"], "legacy_unverified")
 
     def test_typed_bullet_is_rejected(self):
         data = self.data()
@@ -266,7 +334,8 @@ class BuildKSPTests(unittest.TestCase):
                     for run in paragraph.runs
                     if run.text.strip() and run.bold is True and run.italic is True
                 ]
-                self.assertGreaterEqual(len(teacher_method_runs), len(data["stages"]))
+                self.assertEqual(len(teacher_method_runs), sum(len(stage["methods"]) for stage in data["stages"]))
+                self.assertTrue(all(run.text.startswith(BUILD_KSP.METHOD_PREFIX[language]) for run in teacher_method_runs))
                 self.assertTrue(all("***" not in run.text for run in teacher_method_runs))
                 notice_values = {
                     BUILD_KSP.LABELS[language]["professional_notice"],

@@ -63,15 +63,18 @@ class MethodologyArchitectureTests(unittest.TestCase):
         ):
             self.assertIn(field, self.handoff)
 
-    def test_versioned_handoff_contains_release_two_contract(self):
+    def test_versioned_handoff_contains_release_three_contract(self):
         for field in (
-            'schema_version: "2.0"', "lesson_content_version", "content_boundaries",
+            'schema_version: "3.0"', "lesson_content_version", "content_boundaries",
             "episodes", "canonical_tasks", "canonical_answers", "source_bindings",
             "validation_status", "unresolved_limitations", "derivative_registry",
         ):
             self.assertIn(field, self.handoff)
         self.assertIn('status: "requires_regeneration"', self.handoff)
         self.assertIn("контракт версии 1", self.handoff)
+        self.assertIn("legacy_unverified", self.handoff)
+        for field in ("activity_type", "methods", "tasks", "canonical_task_id", "descriptor", "feedback"):
+            self.assertIn(field, self.handoff)
 
     def test_handoff_maps_episodes_to_derivative_materials(self):
         for field in ("worksheet_task_id", "slide_id", "source_lesson_content_version"):

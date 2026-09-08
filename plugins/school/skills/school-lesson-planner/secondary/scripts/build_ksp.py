@@ -49,6 +49,8 @@ LABELS = {
         "alternatives": "Балама және резервтік тапсырмалар",
         "external_resources": "Дереккөздер",
         "professional_notice": "Маңызды ескерту",
+        "descriptor": "Дескриптор",
+        "feedback": "Кері байланыс",
         "professional_notice_text": "Құрметті әріптес, назар аударыңыз, сабақ жоспары және оның әдістемелік қосымшасы ұсыныс ретінде құрастырылды. Құрастырылған оқу материалдары педагог тарапынан міндетті түрде тексеруді талап етеді. Жасанды интеллект педагогикалық шешімді алмастыра алмайтындығын еске саламыз.",
     },
     "ru": {
@@ -66,6 +68,8 @@ LABELS = {
         "alternatives": "Альтернативные и резервные задания",
         "external_resources": "Источники",
         "professional_notice": "Важное примечание",
+        "descriptor": "Дескриптор",
+        "feedback": "Обратная связь",
         "professional_notice_text": "Уважаемый коллега, обратите внимание: план урока и его методическое приложение составлены в качестве рекомендации. Разработанные учебные материалы требуют обязательной проверки педагогом. Искусственный интеллект не может заменить педагогическое решение.",
     },
     "en": {
@@ -83,6 +87,8 @@ LABELS = {
         "alternatives": "Alternative and reserve tasks",
         "external_resources": "Sources",
         "professional_notice": "Important notice",
+        "descriptor": "Descriptor",
+        "feedback": "Feedback",
         "professional_notice_text": "Dear colleague, please note: the lesson plan and its methodological appendix have been prepared as recommendations. The developed learning materials must be reviewed by the teacher. Artificial intelligence cannot replace professional pedagogical judgment.",
     },
 }
@@ -112,6 +118,22 @@ REQUIRED_INTAKE_FIELDS = {
 REQUIRED_STAGE = {
     "name", "minutes", "teacher_actions", "learner_actions", "assessment", "resources",
 }
+REQUIRED_STAGE_V3 = {
+    "name", "minutes", "activity_type", "methods", "teacher_actions", "tasks", "resources",
+}
+REQUIRED_TASK = {
+    "canonical_task_id", "task_type", "objective_refs", "instruction", "learner_action",
+    "expected_product", "descriptor", "feedback",
+}
+REQUIRED_METHOD = {"method_id", "type", "name"}
+ACTIVITY_TYPES = {"organization", "learning"}
+TASK_TYPES = {"oral", "written", "practical", "laboratory", "group", "reflection", "homework"}
+METHOD_TYPES = {"primary", "supporting", "technique"}
+METHOD_PREFIX = {
+    "kk": "Әдіс-тәсіл: ",
+    "ru": "Метод/приём: ",
+    "en": "Method/technique: ",
+}
 OBJECTIVE_CODE = re.compile(r"(?<!\d)\d{1,2}(?:\.\d+){2,}(?!\d)")
 BANNED = (
     "жетістік критерийлері", "критерии успеха", "success criteria",
@@ -119,6 +141,11 @@ BANNED = (
 )
 OLD_ENDING_TERMS = ("шығу билеті", "выходной билет")
 EMPHASIZED_ITEM = re.compile(r"^\*\*\*(?P<text>.+?)\*\*\*$", re.DOTALL)
+NON_DESCRIPTORS = {
+    "ауызша кері байланыс", "устная обратная связь", "oral feedback",
+    "критерийлер бойынша тексеру", "проверка по критериям", "criteria check",
+    "өзін-өзі бағалау", "самооценивание", "self-assessment",
+}
 DEPRECATED_ASSESSMENT_NOTES = (
     "ескерту: «бағалау критерийлері»",
     "примечание: «критерии оценивания»",
@@ -258,6 +285,63 @@ def normalized_field_name(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value).replace("_", " ").replace("-", " ").casefold()).strip()
 
 
+def normalized_text(value: Any) -> str:
+    return re.sub(r"[^\w]+", " ", str(value).casefold(), flags=re.UNICODE).strip()
+
+
+def validate_task(
+    task: Any,
+    *,
+    stage_index: int,
+    seen_task_ids: set[str],
+    descriptor_owners: dict[str, list[str]],
+) -> dict[str, Any]:
+    if not isinstance(task, dict):
+        raise KSPError(f"Stage {stage_index} task must be an object.")
+    missing = sorted(key for key in REQUIRED_TASK if key not in task or not nonempty(task[key]))
+    if missing:
+        raise KSPError(f"Stage {stage_index} task is missing: " + ", ".join(missing))
+    result = deepcopy(task)
+    task_id = str(result["canonical_task_id"]).strip()
+    if task_id in seen_task_ids:
+        raise KSPError(f"Duplicate canonical_task_id: {task_id}")
+    seen_task_ids.add(task_id)
+    result["canonical_task_id"] = task_id
+    task_type = str(result["task_type"]).strip()
+    if task_type not in TASK_TYPES:
+        raise KSPError(f"Task {task_id} has unsupported task_type: {task_type}")
+    result["task_type"] = task_type
+    refs = content_items(result["objective_refs"])
+    result["objective_refs"] = refs
+    for key in ("instruction", "learner_action", "expected_product", "descriptor", "feedback"):
+        if not isinstance(result[key], str) or not result[key].strip():
+            raise KSPError(f"Task {task_id} field {key} must be non-empty text.")
+        result[key] = result[key].strip()
+    if normalized_text(result["descriptor"]) == normalized_text(result["instruction"]):
+        raise KSPError(f"Descriptor repeats the instruction for {task_id}.")
+    if normalized_text(result["descriptor"]) in {normalized_text(value) for value in NON_DESCRIPTORS}:
+        raise KSPError(f"Task {task_id} uses feedback or assessment mode instead of a descriptor.")
+    descriptor_owners.setdefault(normalized_text(result["descriptor"]), []).append(task_id)
+    return result
+
+
+def validate_method(method: Any, *, stage_index: int, seen_method_ids: set[str]) -> dict[str, str]:
+    if not isinstance(method, dict):
+        raise KSPError(f"Stage {stage_index} method must be an object.")
+    missing = sorted(key for key in REQUIRED_METHOD if key not in method or not nonempty(method[key]))
+    if missing:
+        raise KSPError(f"Stage {stage_index} method is missing: " + ", ".join(missing))
+    result = {key: str(method[key]).strip() for key in REQUIRED_METHOD}
+    if result["method_id"] in seen_method_ids:
+        raise KSPError(f"Duplicate method_id: {result['method_id']}")
+    seen_method_ids.add(result["method_id"])
+    if result["type"] not in METHOD_TYPES:
+        raise KSPError(f"Method {result['method_id']} has unsupported type: {result['type']}")
+    if "***" in result["name"] or ":" in result["name"][:24]:
+        raise KSPError(f"Method {result['method_id']} must contain only the method name, without markup or prefix.")
+    return result
+
+
 def find_banned_field_names(value: Any) -> list[str]:
     found: list[str] = []
     if isinstance(value, dict):
@@ -301,6 +385,12 @@ def validate_input(raw: Any) -> dict[str, Any]:
         raise KSPError("Missing required fields: " + ", ".join(missing))
 
     data = deepcopy(raw)
+    schema_version = str(data.get("schema_version", "2.0")).strip()
+    if schema_version not in {"2.0", "3.0"}:
+        raise KSPError("schema_version must be 2.0 or 3.0.")
+    data["schema_version"] = schema_version
+    data["validation_status"] = "strict" if schema_version == "3.0" else "legacy_unverified"
+    data["validation_warnings"] = []
     data["lesson_duration_minutes"] = duration
     data["intake_verification"] = validate_intake(data["intake_verification"])
     data["language"] = normalized_language(data["language"])
@@ -342,30 +432,98 @@ def validate_input(raw: Any) -> dict[str, Any]:
                 f"no code was found in: {objective!r}"
             )
     data["learning_objectives"] = objectives
+    supplied_objective_codes = {
+        match.group(0)
+        for objective in objectives
+        for match in OBJECTIVE_CODE.finditer(objective)
+    }
     data["lesson_objectives"] = bullet_items(data["lesson_objectives"], "lesson_objectives")
     data["assessment_criteria"] = bullet_items(data["assessment_criteria"], "assessment_criteria")
 
     if not isinstance(data["stages"], list) or not data["stages"]:
         raise KSPError("stages must be a non-empty list.")
     total = 0
+    seen_task_ids: set[str] = set()
+    seen_method_ids: set[str] = set()
+    descriptor_owners: dict[str, list[str]] = {}
+    primary_method_seen = False
     for index, stage in enumerate(data["stages"], start=1):
         if not isinstance(stage, dict):
             raise KSPError(f"Stage {index} must be an object.")
-        missing_stage = sorted(key for key in REQUIRED_STAGE if key not in stage or not nonempty(stage[key]))
-        if missing_stage:
-            raise KSPError(f"Stage {index} is missing: " + ", ".join(missing_stage))
+        if schema_version == "3.0":
+            missing_stage = sorted(key for key in REQUIRED_STAGE_V3 if key not in stage)
+            if missing_stage:
+                raise KSPError(f"Stage {index} is missing: " + ", ".join(missing_stage))
+            for key in ("name", "minutes", "teacher_actions", "resources"):
+                if not nonempty(stage[key]):
+                    raise KSPError(f"Stage {index} is missing: {key}")
+            activity_type = str(stage["activity_type"]).strip()
+            if activity_type not in ACTIVITY_TYPES:
+                raise KSPError(f"Stage {index} has unsupported activity_type: {activity_type}")
+            stage["activity_type"] = activity_type
+            stage["teacher_actions"] = content_items(stage["teacher_actions"])
+            if any("***" in action for action in stage["teacher_actions"]):
+                raise KSPError(f"Stage {index} teacher_actions must not contain Markdown emphasis markers.")
+            if not isinstance(stage["methods"], list):
+                raise KSPError(f"Stage {index} methods must be a list.")
+            stage["methods"] = [
+                validate_method(method, stage_index=index, seen_method_ids=seen_method_ids)
+                for method in stage["methods"]
+            ]
+            primary_method_seen = primary_method_seen or any(
+                method["type"] == "primary" for method in stage["methods"]
+            )
+            if not isinstance(stage["tasks"], list):
+                raise KSPError(f"Stage {index} tasks must be a list.")
+            if activity_type == "learning" and not stage["tasks"]:
+                raise KSPError(f"Stage {index} is a learning activity and requires at least one task.")
+            if activity_type == "organization" and stage["tasks"]:
+                raise KSPError(f"Stage {index} is organizational and must not contain learning tasks.")
+            stage["tasks"] = [
+                validate_task(
+                    task,
+                    stage_index=index,
+                    seen_task_ids=seen_task_ids,
+                    descriptor_owners=descriptor_owners,
+                )
+                for task in stage["tasks"]
+            ]
+            for task in stage["tasks"]:
+                unknown_refs = sorted(set(task["objective_refs"]) - supplied_objective_codes)
+                if unknown_refs:
+                    raise KSPError(
+                        f"Task {task['canonical_task_id']} references objectives not supplied by the teacher: "
+                        + ", ".join(unknown_refs)
+                    )
+        else:
+            missing_stage = sorted(key for key in REQUIRED_STAGE if key not in stage or not nonempty(stage[key]))
+            if missing_stage:
+                raise KSPError(f"Stage {index} is missing: " + ", ".join(missing_stage))
         minutes = stage["minutes"]
         if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes <= 0:
             raise KSPError(f"Stage {index} minutes must be a positive integer.")
         total += minutes
-        for key in REQUIRED_STAGE - {"minutes"}:
-            items = content_items(stage[key])
+        values_to_check = (
+            stage["teacher_actions"]
+            if schema_version == "3.0"
+            else [stage[key] for key in REQUIRED_STAGE - {"minutes"}]
+        )
+        for value in values_to_check:
+            items = content_items(value) if not isinstance(value, str) else [value]
             for item in items:
                 if any(term in item.casefold() for term in OLD_ENDING_TERMS):
                     raise KSPError(
                         "Use the localized final-stage term Reflection/Рефлексия; "
                         "use reflection and actionable feedback; do not use former labels for the final stage."
                     )
+    if schema_version == "3.0":
+        if not primary_method_seen:
+            raise KSPError("Schema 3.0 requires at least one primary method in the stage where it is used.")
+        duplicates = [owners for owners in descriptor_owners.values() if len(owners) > 1]
+        for owners in duplicates:
+            data["validation_warnings"].append(
+                "Repeated descriptor text is mapped separately to: " + ", ".join(owners)
+            )
     if total != data["lesson_duration_minutes"]:
         raise KSPError(
             f"Stage minutes total {total}, but this lesson must total {data['lesson_duration_minutes']}."
@@ -610,6 +768,34 @@ def fill_front_matter(doc, data: dict[str, Any]) -> None:
     set_cell_content(table.rows[4].cells[3], administrative_value(data.get("absent")))
 
 
+def render_teacher_actions(cell, stage: dict[str, Any], language: str) -> None:
+    cell.text = ""
+    first = cell.paragraphs[0]
+    entries = [
+        (METHOD_PREFIX[language] + method["name"], True)
+        for method in stage["methods"]
+    ] + [(action, False) for action in stage["teacher_actions"]]
+    for index, (text, is_method) in enumerate(entries):
+        paragraph = first if index == 0 else cell.add_paragraph()
+        clear_paragraph(paragraph)
+        format_run(paragraph.add_run(text), bold=is_method, italic=is_method)
+        paragraph.paragraph_format.space_after = Pt(0)
+        paragraph.paragraph_format.space_before = Pt(0)
+    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+
+def rendered_task_columns(stage: dict[str, Any], language: str) -> tuple[list[str], list[str]]:
+    learner_actions: list[str] = []
+    assessment: list[str] = []
+    for task in stage["tasks"]:
+        task_id = task["canonical_task_id"]
+        learner_actions.append(f"{task_id}: {task['learner_action']}")
+        assessment.append(f"{task_id} — {LABELS[language]['descriptor']}: {task['descriptor']}")
+        assessment.append(f"{LABELS[language]['feedback']}: {task['feedback']}")
+    if not learner_actions:
+        learner_actions = ["—"]
+        assessment = ["—"]
+    return learner_actions, assessment
 def fill_stages(doc, data: dict[str, Any]) -> None:
     table = doc.tables[1]
     remove_body_rows(table)
@@ -618,15 +804,20 @@ def fill_stages(doc, data: dict[str, Any]) -> None:
     for stage in data["stages"]:
         row = table.add_row()
         mark_row_cant_split(row)
-        values = (
-            f"{stage['name']} ({stage['minutes']} {LABELS[language]['minute']})",
-            stage["teacher_actions"], stage["learner_actions"],
-            stage["assessment"], stage["resources"],
-        )
-        for index, (cell, value) in enumerate(zip(row.cells, values)):
+        for index, cell in enumerate(row.cells):
             set_cell_width(cell, LESSON_WIDTHS_DXA[index])
             set_cell_margins(cell)
-            set_cell_content(cell, value, render_emphasis=index == 1)
+        set_cell_content(row.cells[0], f"{stage['name']} ({stage['minutes']} {LABELS[language]['minute']})")
+        if data["schema_version"] == "3.0":
+            render_teacher_actions(row.cells[1], stage, language)
+            learner_items, assessment_items = rendered_task_columns(stage, language)
+            set_cell_content(row.cells[2], learner_items)
+            set_cell_content(row.cells[3], assessment_items)
+        else:
+            set_cell_content(row.cells[1], stage["teacher_actions"], render_emphasis=True)
+            set_cell_content(row.cells[2], stage["learner_actions"])
+            set_cell_content(row.cells[3], stage["assessment"])
+        set_cell_content(row.cells[4], stage["resources"])
 
 
 def add_heading(doc, text: str, level: int) -> None:
@@ -775,6 +966,8 @@ def structural_audit(
     path: Path,
     expected_stages: int | None = None,
     expected_bullets: dict[int, int] | None = None,
+    expected_stage_contract: list[dict[str, Any]] | None = None,
+    expected_language: str | None = None,
 ) -> dict[str, Any]:
     if not path.exists() or path.stat().st_size == 0:
         raise KSPError(f"DOCX does not exist or is empty: {path}")
@@ -806,16 +999,50 @@ def structural_audit(
         header_xml = doc.tables[1].rows[0]._tr.xml
         if "tblHeader" not in header_xml:
             failures.append("The lesson-progress table header is not marked to repeat.")
-        teacher_method_runs = []
-        for row in doc.tables[1].rows[1:]:
-            for paragraph in row.cells[1].paragraphs:
-                teacher_method_runs.extend(
-                    run for run in paragraph.runs if run.text.strip() and run.bold is True and run.italic is True
-                )
-        if not teacher_method_runs:
-            failures.append("Teacher actions must contain at least one bold-italic method or technique label.")
+        if expected_stage_contract is not None and expected_language is not None:
+            prefix = METHOD_PREFIX[expected_language]
+            for stage_index, (stage, row) in enumerate(
+                zip(expected_stage_contract, doc.tables[1].rows[1:]), start=1
+            ):
+                paragraphs = [p for p in row.cells[1].paragraphs if p.text.strip()]
+                expected_methods = [prefix + method["name"] for method in stage["methods"]]
+                expected_actions = content_items(stage["teacher_actions"])
+                method_paragraphs = [p for p in paragraphs if p.text.startswith(prefix)]
+                if [p.text for p in method_paragraphs] != expected_methods:
+                    failures.append(
+                        f"Stage {stage_index} {stage['name']!r}: method lines are missing, reordered, or use the wrong localized prefix."
+                    )
+                for paragraph in method_paragraphs:
+                    visible_runs = [run for run in paragraph.runs if run.text]
+                    if not visible_runs or any(run.bold is not True or run.italic is not True for run in visible_runs):
+                        failures.append(
+                            f"Stage {stage_index} {stage['name']!r}: method name is not fully bold italic."
+                        )
+                action_paragraphs = [p for p in paragraphs if p.text in expected_actions]
+                if [p.text for p in action_paragraphs] != expected_actions:
+                    failures.append(
+                        f"Stage {stage_index} {stage['name']!r}: teacher actions are missing or not in separate paragraphs."
+                    )
+                for paragraph in action_paragraphs:
+                    if any(run.bold is True or run.italic is True for run in paragraph.runs if run.text):
+                        failures.append(
+                            f"Stage {stage_index} {stage['name']!r}: ordinary teacher action must use regular type."
+                        )
+        else:
+            teacher_method_runs = [
+                run
+                for row in doc.tables[1].rows[1:]
+                for paragraph in row.cells[1].paragraphs
+                for run in paragraph.runs
+                if run.text.strip() and run.bold is True and run.italic is True
+            ]
+            if not teacher_method_runs:
+                failures.append("Legacy document has no bold-italic method or technique label.")
 
-    text = all_text(doc).casefold()
+    raw_text = all_text(doc)
+    if "***" in raw_text:
+        failures.append("Markdown emphasis markers leaked into the DOCX.")
+    text = raw_text.casefold()
     label_text = "\n".join(
         row.cells[0].text.casefold()
         for row in doc.tables[0].rows
@@ -890,7 +1117,8 @@ def build(data: dict[str, Any], output: Path) -> dict[str, Any]:
     doc.core_properties.keywords = (
         f"language={data['language']};lesson-duration={data['lesson_duration_minutes']};"
         f"requested-lesson-count={data['lesson_count']};"
-        f"stage-total={sum(stage['minutes'] for stage in data['stages'])}"
+        f"stage-total={sum(stage['minutes'] for stage in data['stages'])};"
+        f"schema={data['schema_version']};validation={data['validation_status']}"
     )
     doc.save(output)
     normalize_ooxml(output)
@@ -901,11 +1129,14 @@ def build(data: dict[str, Any], output: Path) -> dict[str, Any]:
             7: len(data["lesson_objectives"]),
             8: len(data["assessment_criteria"]),
         },
+        expected_stage_contract=data["stages"] if data["schema_version"] == "3.0" else None,
+        expected_language=data["language"] if data["schema_version"] == "3.0" else None,
     )
 
 
 def example(*, test_fixture: bool = False) -> dict[str, Any]:
     data = {
+        "schema_version": "3.0",
         "intake_verification": {
             "confirmed_by_user": test_fixture,
             "confirmed_fields": sorted(REQUIRED_INTAKE_FIELDS),
@@ -943,22 +1174,49 @@ def example(*, test_fixture: bool = False) -> dict[str, Any]:
         ],
         "stages": [
             {
-                "name": "Начало урока", "minutes": 5,
-                "teacher_actions": ["***Метод/приём: Вспомни без подсказки***", "Организует актуализацию необходимых знаний."],
-                "learner_actions": "Отвечают на диагностические вопросы.",
-                "assessment": "Устная обратная связь.", "resources": "Доска."
+                "name": "Начало урока", "minutes": 5, "activity_type": "learning",
+                "methods": [{"method_id": "method-01", "type": "supporting", "name": "Вспомни без подсказки"}],
+                "teacher_actions": ["Организует актуализацию необходимых знаний."],
+                "tasks": [{
+                    "canonical_task_id": "task-01", "task_type": "oral",
+                    "objective_refs": ["7.4.1.4"],
+                    "instruction": "Объясните, как построить график линейной функции по двум точкам.",
+                    "learner_action": "Воспроизводит алгоритм построения графика без подсказки.",
+                    "expected_product": "Устное объяснение последовательности построения.",
+                    "descriptor": "Называет не менее двух корректных шагов построения графика.",
+                    "feedback": "Учитель уточняет пропущенный шаг вопросом и предлагает исправить ответ."
+                }],
+                "resources": "Доска."
             },
             {
-                "name": "Основная часть", "minutes": 30,
-                "teacher_actions": ["***Метод/приём: Предскажи — проверь — объясни***", "Организует исследование и практику построения графиков."],
-                "learner_actions": "Строят, сравнивают и объясняют графики.",
-                "assessment": "Проверка по критериям и комментарий учителя.", "resources": "Карточки, координатная плоскость."
+                "name": "Основная часть", "minutes": 30, "activity_type": "learning",
+                "methods": [{"method_id": "method-02", "type": "primary", "name": "Предскажи — проверь — объясни"}],
+                "teacher_actions": ["Организует исследование и практику построения графиков."],
+                "tasks": [{
+                    "canonical_task_id": "task-02", "task_type": "written",
+                    "objective_refs": ["7.4.1.4"],
+                    "instruction": "Постройте два графика с разными значениями коэффициента k, сравните их и объясните различие.",
+                    "learner_action": "Строит, сравнивает и объясняет графики.",
+                    "expected_product": "Два графика и письменный вывод о влиянии коэффициента k.",
+                    "descriptor": "Строит оба графика без ошибок и связывает их расположение со значением k.",
+                    "feedback": "Учитель указывает, какой элемент графика или объяснения нужно перепроверить."
+                }],
+                "resources": "Карточки, координатная плоскость."
             },
             {
-                "name": "Рефлексия", "minutes": 5,
-                "teacher_actions": ["***Метод/приём: Рефлексия по критерию***", "Организует итоговую рефлексию с доказательством достижения цели."],
-                "learner_actions": "Формулируют вывод, соотносят ответ с критерием и определяют следующий шаг.",
-                "assessment": "Индивидуальный ответ и самооценивание по критерию.", "resources": "Карточка рефлексии."
+                "name": "Рефлексия", "minutes": 5, "activity_type": "learning",
+                "methods": [{"method_id": "method-03", "type": "technique", "name": "Рефлексия по критерию"}],
+                "teacher_actions": ["Организует итоговую рефлексию с доказательством достижения цели."],
+                "tasks": [{
+                    "canonical_task_id": "task-03", "task_type": "reflection",
+                    "objective_refs": ["7.4.1.4"],
+                    "instruction": "Сформулируйте вывод о достижении цели и назовите следующий шаг.",
+                    "learner_action": "Соотносит свой результат с критерием и определяет следующий шаг.",
+                    "expected_product": "Индивидуальный рефлексивный ответ.",
+                    "descriptor": "Приводит одно доказательство достижения цели и формулирует конкретный следующий шаг.",
+                    "feedback": "Учитель подтверждает доказательство или просит конкретизировать следующий шаг."
+                }],
+                "resources": "Карточка рефлексии."
             }
         ],
         "methodological_appendix": {
