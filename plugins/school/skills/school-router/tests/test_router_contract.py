@@ -10,6 +10,7 @@ FOLLOW_UP = (PLUGIN / "references" / "next-material-follow-up.md").read_text(enc
 SURVEY = (PLUGIN / "references" / "teacher-survey-follow-up.md").read_text(encoding="utf-8")
 HANDOFF = (PLUGIN / "references" / "lesson-plan-handoff.md").read_text(encoding="utf-8")
 CLASS_CONTEXT = (PLUGIN / "references" / "class-characteristics-intake.md").read_text(encoding="utf-8")
+WELCOME = (PLUGIN / "references" / "plugin-welcome.md").read_text(encoding="utf-8")
 ALL_TEXT = "\n".join(
     path.read_text(encoding="utf-8", errors="ignore")
     for path in PLUGIN.rglob("*")
@@ -117,13 +118,25 @@ class RouterContractTests(unittest.TestCase):
         self.assertIn('academic_year: "2026–2027"', SKILL)
         self.assertIn("не задавать учителю вопрос об учебном годе", SKILL)
 
-    def test_localized_first_run_menu_exists(self):
-        for question in (
-            "Сізге қандай оқу материалын дайындау қажет?",
-            "Какой учебный материал вам необходимо подготовить?",
-            "What teaching material would you like to prepare?",
+    def test_localized_first_run_welcome_exists(self):
+        for heading in (
+            "Бүгін қандай материал дайындағыңыз келеді?",
+            "Какой материал вы хотите подготовить сегодня?",
+            "What material would you like to prepare today?",
         ):
-            self.assertIn(question, SKILL)
+            self.assertIn(heading, WELCOME)
+        self.assertIn('"Ustaz BilimAI Mektep" плагин предназначен', WELCOME)
+        self.assertIn('"Ustaz BilimAI Mektep" плагині', WELCOME)
+        self.assertIn('The "Ustaz BilimAI Mektep" plugin is designed', WELCOME)
+        self.assertEqual(3, WELCOME.count("+7 708 376 69 03"))
+
+    def test_welcome_is_once_and_monolingual(self):
+        for phrase in (
+            "один раз", "только одну версию", "не смешивать языки",
+            "без требования повторить запрос", "не повторять",
+        ):
+            self.assertIn(phrase, SKILL + WELCOME)
+        self.assertNotIn("&#" + "x20;", WELCOME)
 
 
 if __name__ == "__main__":
