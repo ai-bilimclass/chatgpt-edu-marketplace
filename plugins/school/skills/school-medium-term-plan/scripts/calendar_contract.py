@@ -37,7 +37,7 @@ def _reject_external_urls(value: Any, path: str = "builtin_calendar") -> None:
 
 def load_builtin_calendar() -> dict[str, Any]:
     if not BUILTIN_CALENDAR_PATH.is_file():
-        raise ValueError("Built-in approved calendar is missing; request a source from the teacher and stop generation")
+        raise ValueError("Built-in approved calendar is missing; plugin maintenance is required")
     payload = json.loads(BUILTIN_CALENDAR_PATH.read_text(encoding="utf-8"))
     _reject_external_urls(payload)
     if str(payload.get("academic_year", "")).replace("-", "–") != "2026–2027":
@@ -68,12 +68,6 @@ def apply_calendar_contract(data: dict[str, Any]) -> None:
     builtin = load_builtin_calendar()
     holidays = copy.deepcopy(builtin["public_holidays"])
     exclusions = list(builtin["non_instruction_dates"])
-    pending = {
-        str(item.get("name", "")).strip()
-        for item in builtin.get("pending_variable_holidays", [])
-        if isinstance(item, dict) and str(item.get("name", "")).strip()
-    }
-
     additions = data.get("teacher_calendar_additions", [])
     teacher_exclusions = data.get("teacher_non_instruction_dates", [])
     conflicts = data.get("calendar_conflicts", [])
@@ -87,7 +81,6 @@ def apply_calendar_contract(data: dict[str, Any]) -> None:
     if source_type == "builtin_with_teacher_additions":
         if not str(data.get("teacher_calendar_file", "")).strip():
             raise ValueError("teacher_calendar_file must identify the calendar file uploaded by the teacher")
-        resolved_pending: set[str] = set()
         known_dates = {str(item["date"]) for item in holidays}
         for item in additions:
             if not isinstance(item, dict) or not str(item.get("name", "")).strip():
@@ -95,27 +88,15 @@ def apply_calendar_contract(data: dict[str, Any]) -> None:
             item_date = date.fromisoformat(str(item.get("date", ""))).isoformat()
             if item_date in known_dates:
                 raise ValueError("Teacher calendar additions must not replace a built-in date")
-            resolves_pending = str(item.get("resolves_pending", "")).strip()
-            if resolves_pending:
-                if resolves_pending not in pending:
-                    raise ValueError("Teacher calendar addition resolves an unknown pending item")
-                resolved_pending.add(resolves_pending)
             holidays.append(copy.deepcopy(item))
             known_dates.add(item_date)
             exclusions.append(item_date)
-        pending -= resolved_pending
         for value in teacher_exclusions:
             normalized = date.fromisoformat(str(value)).isoformat()
             if normalized not in exclusions:
                 exclusions.append(normalized)
     elif additions or teacher_exclusions or str(data.get("teacher_calendar_file", "")).strip():
         raise ValueError("Teacher calendar data requires calendar_source_type builtin_with_teacher_additions")
-
-    if pending:
-        names = ", ".join(sorted(pending))
-        raise ValueError(
-            f"Missing mandatory calendar data for {names}; request a source from the teacher and stop generation"
-        )
 
     if int(data.get("grade", 0)) == 1:
         for day in range(8, 15):

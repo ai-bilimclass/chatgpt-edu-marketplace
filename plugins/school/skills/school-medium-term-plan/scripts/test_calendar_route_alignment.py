@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +17,7 @@ CALENDAR_REFERENCE = "references/calendar/official-holidays-2026-2027.json"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import calendar_contract
 from calendar_contract import apply_calendar_contract
 
 
@@ -57,6 +60,43 @@ class CalendarRouteAlignmentTest(unittest.TestCase):
         self.assertTrue(primary_data["calendar_source_complete"])
         self.assertTrue(secondary_data["calendar_source_complete"])
 
+    def test_pending_maintenance_metadata_does_not_block_either_route(self):
+        builtin = calendar_contract.load_builtin_calendar()
+        self.assertEqual(builtin["pending_policy"], "maintenance_only_non_blocking")
+        self.assertTrue(builtin["pending_variable_holidays"])
+        for support in (PRIMARY, SECONDARY):
+            data = support.make_data(1)
+            support.validate(data)
+            self.assertTrue(data["calendar_source_complete"])
+
+    def test_future_confirmed_builtin_holiday_is_used_automatically(self):
+        future_date = "2027-05-20"
+        builtin = copy.deepcopy(calendar_contract.load_builtin_calendar())
+        builtin["public_holidays"].append({
+            "date": future_date,
+            "name": "Болашақта ресми расталған күн",
+            "kind": "statutory_day_off",
+            "official_transfer_date": None,
+            "teacher_transfer_date": None,
+        })
+        builtin["non_instruction_dates"].append(future_date)
+        with patch.object(calendar_contract, "load_builtin_calendar", return_value=builtin):
+            for support in (PRIMARY, SECONDARY):
+                data = support.make_data(1)
+                support.validate(data)
+                self.assertIn(future_date, data["non_instruction_dates"])
+                self.assertTrue(any(item["date"] == future_date for item in data["public_holidays"]))
+
+    def test_active_routes_forbid_calendar_questions(self):
+        route_paths = (
+            ROOT / "runtime-workflow.md",
+            ROOT.parent / "school-router" / "runtime-workflow.md",
+        )
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in route_paths)
+        self.assertIn("Не задавать вопросы «Укажите дату Құрбан айт»", combined)
+        self.assertIn("«Прикрепите календарь»", combined)
+        self.assertIn("«Не учитывать Құрбан айт?»", combined)
+
     def test_grade_one_extra_break_is_added_only_by_primary_contract(self):
         data = PRIMARY.make_data(1)
         data["grade"] = 1
@@ -69,6 +109,7 @@ class CalendarRouteAlignmentTest(unittest.TestCase):
 
     def test_teacher_calendar_cannot_replace_builtin_dates(self):
         data = SECONDARY.make_data(1)
+        SECONDARY.enable_teacher_calendar(data)
         data["teacher_calendar_additions"].append({
             "date": "2026-12-16",
             "name": "Попытка замены встроенной даты",

@@ -19,7 +19,7 @@ class NoExternalSearchTests(unittest.TestCase):
                 self.assertIsNone(URL.search(path.read_text(encoding="utf-8")), str(path))
         self.assertTrue(checked)
 
-    def test_entire_ktp_route_states_the_hard_stop(self):
+    def test_entire_ktp_route_states_source_boundaries_and_nonblocking_calendar(self):
         combined = "\n".join((
             (ROOT / "runtime-workflow.md").read_text(encoding="utf-8"),
             (ROOT / "references" / "teacher-source-policy.md").read_text(encoding="utf-8"),
@@ -30,8 +30,10 @@ class NoExternalSearchTests(unittest.TestCase):
             "внешние URL",
             "файлы учителя",
             "встроенный утверждённый календарь плагина на 2026–2027 учебный год",
-            "остановиться",
-            "запросить источник у учителя",
+            "автоматически продолжать создание без запроса календаря у учителя",
+            "pending_variable_holidays",
+            "не блокируют КТП",
+            "Не задавать вопросы «Укажите дату Құрбан айт»",
         ):
             self.assertIn(phrase.casefold(), combined.casefold())
 
