@@ -24,6 +24,7 @@ class MethodologyArchitectureTests(unittest.TestCase):
         cls.interactions = read(ROOT / "references" / "interaction-structures.md")
         cls.episode = read(ROOT / "references" / "practical-episode-contract.md")
         cls.search_policy = read(ROOT / "references" / "practical-technique-search-policy.md")
+        cls.math_contract = read(SCHOOL / "references" / "editable-math-contract.md")
 
     def test_six_core_and_three_specialized_directions_exist(self):
         for filename in (
@@ -192,6 +193,20 @@ class MethodologyArchitectureTests(unittest.TestCase):
         self.assertIn("не добавлять автоматически в постоянный встроенный каталог", self.search_policy)
         self.assertIn("действует только в текущем плане", self.search_policy)
         self.assertIn("episodes[].technique_id", self.handoff)
+
+    def test_editable_math_contract_is_transferred_in_handoff(self):
+        for field in (
+            "math_objects", "math_id", "presentation_mathml", "review_latex",
+            "spoken_text", "variables_and_units", "verified", "placements",
+        ):
+            self.assertIn(field, "\n".join((self.handoff, self.math_contract)))
+        self.assertIn("увеличивает `lesson_content_version`", self.handoff)
+
+    def test_native_office_math_is_required_for_docx_and_pptx(self):
+        for token in ("m:oMath", "m:oMathPara", "a14:m", "mc:AlternateContent", 'Requires="a14"'):
+            self.assertIn(token, self.math_contract)
+        self.assertIn("не считаются редактируемой формулой", self.math_contract)
+        self.assertIn("validate_editable_math.py", self.math_contract)
 
 
 if __name__ == "__main__":

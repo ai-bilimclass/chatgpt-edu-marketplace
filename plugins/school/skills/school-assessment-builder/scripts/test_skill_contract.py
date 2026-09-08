@@ -49,6 +49,11 @@ class AssessmentSkillContractTests(unittest.TestCase):
         self.assertIn("Если готовый `lesson_plan_handoff` содержит блок `methodology`", self.skill)
         self.assertIn("не перестраивать самостоятельную логику", self.skill)
 
+    def test_docx_formulas_are_native_and_validated(self):
+        for phrase in ("editable-math-contract.md", "math_id", "m:oMath", "m:oMathPara", "validate_editable_math.py"):
+            self.assertIn(phrase, self.skill)
+        self.assertIn("Не выдавать изображение, строку LaTeX", self.skill)
+
 
 if __name__ == "__main__":
     unittest.main()

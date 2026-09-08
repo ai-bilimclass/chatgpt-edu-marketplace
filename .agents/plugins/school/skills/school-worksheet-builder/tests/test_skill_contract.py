@@ -51,6 +51,11 @@ class WorksheetSkillContractTests(unittest.TestCase):
         self.assertIn('status: "requires_regeneration"', self.skill)
         self.assertIn("без заявления об эпизодной синхронизации", self.skill)
 
+    def test_math_objects_remain_native_and_editable(self):
+        for token in ("math_objects", "math_id", "m:oMath", "m:oMathPara", "validate_editable_math.py"):
+            self.assertIn(token, self.skill)
+        self.assertIn("а не как изображения или строки LaTeX", self.skill)
+
     def test_all_four_routes_are_declared(self):
         for path in (
             "primary/regular-worksheet.md",

@@ -47,6 +47,12 @@ class PresentationSkillContractTests(unittest.TestCase):
         self.assertIn('status: "requires_regeneration"', self.skill)
         self.assertIn("без заявления об эпизодной синхронизации", self.skill)
 
+    def test_math_objects_use_native_powerpoint_math(self):
+        for token in ("math_objects", "math_id", "a14:m", "m:oMath", "mc:AlternateContent", "validate_editable_math.py"):
+            self.assertIn(token, self.skill)
+        self.assertIn("fallback служит только совместимости", self.skill)
+        self.assertIn("Не использовать PNG/SVG", self.skill)
+
     def test_only_one_combined_clarification_round(self):
         self.assertIn("не более одного объединённого уточняющего вопроса", self.skill)
         self.assertIn("Не задавать эти вопросы", self.skill)
