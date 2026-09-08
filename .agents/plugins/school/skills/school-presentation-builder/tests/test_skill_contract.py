@@ -53,6 +53,11 @@ class PresentationSkillContractTests(unittest.TestCase):
         self.assertIn("fallback служит только совместимости", self.skill)
         self.assertIn("Не использовать PNG/SVG", self.skill)
 
+    def test_every_slide_task_has_its_own_visible_descriptor(self):
+        self.assertIn("Для каждого задания на слайдах без исключения", self.skill)
+        self.assertIn("непосредственно следующем слайде проверки", self.skill)
+        self.assertIn("не заменять его общим критерием", self.skill)
+
     def test_only_one_combined_clarification_round(self):
         self.assertIn("не более одного объединённого уточняющего вопроса", self.skill)
         self.assertIn("Не задавать эти вопросы", self.skill)

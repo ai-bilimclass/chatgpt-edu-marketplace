@@ -118,6 +118,7 @@ BANNED = (
     "күтілетін нәтиже", "ожидаемый результат", "expected result",
 )
 OLD_ENDING_TERMS = ("шығу билеті", "выходной билет")
+EMPHASIZED_ITEM = re.compile(r"^\*\*\*(?P<text>.+?)\*\*\*$", re.DOTALL)
 DEPRECATED_ASSESSMENT_NOTES = (
     "ескерту: «бағалау критерийлері»",
     "примечание: «критерии оценивания»",
@@ -508,7 +509,9 @@ def set_paragraph_content(paragraph, value: Any, *, bold: bool = False) -> None:
         format_run(paragraph.add_run(item), bold=bold)
 
 
-def set_cell_content(cell, value: Any, *, bullet_list: bool = False) -> None:
+def set_cell_content(
+    cell, value: Any, *, bullet_list: bool = False, render_emphasis: bool = False
+) -> None:
     items = content_items(value) if not isinstance(value, (str, int)) else [str(value).strip()]
     cell.text = ""
     first = cell.paragraphs[0]
@@ -517,7 +520,11 @@ def set_cell_content(cell, value: Any, *, bullet_list: bool = False) -> None:
         clear_paragraph(paragraph)
         if bullet_list:
             paragraph.style = "List Bullet"
-        format_run(paragraph.add_run(item))
+        match = EMPHASIZED_ITEM.fullmatch(item) if render_emphasis else None
+        if match:
+            format_run(paragraph.add_run(match.group("text").strip()), bold=True, italic=True)
+        else:
+            format_run(paragraph.add_run(item))
         paragraph.paragraph_format.space_after = Pt(0)
         paragraph.paragraph_format.space_before = Pt(0)
     cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
@@ -619,7 +626,7 @@ def fill_stages(doc, data: dict[str, Any]) -> None:
         for index, (cell, value) in enumerate(zip(row.cells, values)):
             set_cell_width(cell, LESSON_WIDTHS_DXA[index])
             set_cell_margins(cell)
-            set_cell_content(cell, value)
+            set_cell_content(cell, value, render_emphasis=index == 1)
 
 
 def add_heading(doc, text: str, level: int) -> None:
@@ -799,6 +806,14 @@ def structural_audit(
         header_xml = doc.tables[1].rows[0]._tr.xml
         if "tblHeader" not in header_xml:
             failures.append("The lesson-progress table header is not marked to repeat.")
+        teacher_method_runs = []
+        for row in doc.tables[1].rows[1:]:
+            for paragraph in row.cells[1].paragraphs:
+                teacher_method_runs.extend(
+                    run for run in paragraph.runs if run.text.strip() and run.bold is True and run.italic is True
+                )
+        if not teacher_method_runs:
+            failures.append("Teacher actions must contain at least one bold-italic method or technique label.")
 
     text = all_text(doc).casefold()
     label_text = "\n".join(
@@ -929,19 +944,19 @@ def example(*, test_fixture: bool = False) -> dict[str, Any]:
         "stages": [
             {
                 "name": "Начало урока", "minutes": 5,
-                "teacher_actions": "Организует актуализацию необходимых знаний.",
+                "teacher_actions": ["***Метод/приём: Вспомни без подсказки***", "Организует актуализацию необходимых знаний."],
                 "learner_actions": "Отвечают на диагностические вопросы.",
                 "assessment": "Устная обратная связь.", "resources": "Доска."
             },
             {
                 "name": "Основная часть", "minutes": 30,
-                "teacher_actions": "Организует исследование и практику построения графиков.",
+                "teacher_actions": ["***Метод/приём: Предскажи — проверь — объясни***", "Организует исследование и практику построения графиков."],
                 "learner_actions": "Строят, сравнивают и объясняют графики.",
                 "assessment": "Проверка по критериям и комментарий учителя.", "resources": "Карточки, координатная плоскость."
             },
             {
                 "name": "Рефлексия", "minutes": 5,
-                "teacher_actions": "Организует итоговую рефлексию с доказательством достижения цели.",
+                "teacher_actions": ["***Метод/приём: Рефлексия по критерию***", "Организует итоговую рефлексию с доказательством достижения цели."],
                 "learner_actions": "Формулируют вывод, соотносят ответ с критерием и определяют следующий шаг.",
                 "assessment": "Индивидуальный ответ и самооценивание по критерию.", "resources": "Карточка рефлексии."
             }

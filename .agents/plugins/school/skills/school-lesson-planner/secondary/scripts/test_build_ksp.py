@@ -259,6 +259,15 @@ class BuildKSPTests(unittest.TestCase):
                 self.assertNotIn("источники и статус", text)
                 self.assertNotIn("sources and status", text)
                 rendered = BUILD_KSP.Document(output)
+                teacher_method_runs = [
+                    run
+                    for row in rendered.tables[1].rows[1:]
+                    for paragraph in row.cells[1].paragraphs
+                    for run in paragraph.runs
+                    if run.text.strip() and run.bold is True and run.italic is True
+                ]
+                self.assertGreaterEqual(len(teacher_method_runs), len(data["stages"]))
+                self.assertTrue(all("***" not in run.text for run in teacher_method_runs))
                 notice_values = {
                     BUILD_KSP.LABELS[language]["professional_notice"],
                     BUILD_KSP.LABELS[language]["professional_notice_text"],

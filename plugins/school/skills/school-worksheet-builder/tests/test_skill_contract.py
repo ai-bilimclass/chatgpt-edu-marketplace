@@ -36,7 +36,8 @@ class WorksheetSkillContractTests(unittest.TestCase):
             self.secondary_regular,
             self.secondary_lab,
         ))
-        self.assertIn("Для каждого задания включать локализованный дескриптор", combined)
+        self.assertIn("Для каждого задания без исключения включать отдельный локализованный дескриптор", combined)
+        self.assertIn("Не объединять несколько заданий под одним общим дескриптором", combined)
         self.assertGreaterEqual(combined.casefold().count("дескриптор"), 5)
 
     def test_methodology_is_applied_from_handoff_without_reselection(self):

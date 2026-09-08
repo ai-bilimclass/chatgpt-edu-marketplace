@@ -49,6 +49,8 @@ Use blank placeholders for administrative fields not provided. Never invent teac
 
 Always render `lesson objectives` and `assessment criteria` as true bulleted lists in their table cells: one objective or criterion per bullet. In JSON, both fields must be arrays with one clean item per array element. Do not place several items in one string, use embedded line breaks, or type bullet/number symbols manually. The builder must reject those inputs and verify the resulting Word bullet count.
 
+For every task in the lesson progress table, include a separate observable localized descriptor in the assessment cell. In every applicable `teacher_actions` cell, put the method or technique on its own list item using triple emphasis markers: `***Әдіс-тәсіл: …***`, `***Метод/приём: …***`, or `***Method/technique: …***`. The DOCX builder removes the markers and renders that line bold italic; the remaining teacher actions stay in regular type.
+
 The assessment-criteria row is a methodological addition to the mandatory minimum of the bundled form, not a separate mandatory field of Order No. 130. Do not add a separate or combined expected-results field (`Күтілетін нәтиже`, `Ожидаемый результат`, or `Expected result(s)`) to the bundled form. Do not label assessment criteria as success criteria.
 
 ## User-supplied template fidelity
@@ -154,6 +156,7 @@ The JSON must contain:
 - derived `lesson_objectives`;
 - `assessment_criteria`;
 - one or more `stages`, each with `name`, `minutes`, `teacher_actions`, `learner_actions`, `assessment`, and `resources`;
+- every task represented in a stage must have its own observable descriptor in `assessment`; method/technique items in `teacher_actions` must use the triple-emphasis form so they become bold italic in DOCX;
 - `methodological_appendix` with `goal_analysis`, `knowledge_skills_analysis`, `methodology_application`, `model_rationale`, `differentiation`, `formative_assessment`, `alternatives`, and `audit_summary`; add `term_explanations` when a specialized method name or acronym is used.
 
 Administrative fields `organization`, `teacher`, `date`, `present`, and `absent` may be empty. Do not invent them. `reflection_use`, `term_explanations`, and `external_resources` in the appendix are conditional; include them only when applicable.
