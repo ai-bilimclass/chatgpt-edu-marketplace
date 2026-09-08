@@ -535,7 +535,24 @@ def validate_assessment_order(quarters: list[dict[str, Any]], language: str) -> 
             raise ValueError("The final lesson of a quarter must not contain an assessment marker")
 
 
+EXTERNAL_URL = re.compile(r"(?:https?://|www\.)", re.IGNORECASE)
+
+
+def reject_external_urls(value: Any, path: str = "input") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key).casefold() in {"url", "source_url", "external_url"}:
+                raise ValueError(f"External URL fields are forbidden in KTP input: {path}.{key}")
+            reject_external_urls(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            reject_external_urls(child, f"{path}[{index}]")
+    elif isinstance(value, str) and EXTERNAL_URL.search(value):
+        raise ValueError(f"External URLs are forbidden in KTP input: {path}")
+
+
 def validate(data: dict[str, Any]) -> None:
+    reject_external_urls(data)
     normalize_objective_codes_in_data(data)
     validate_unicode_value(data)
     required = [
@@ -547,7 +564,7 @@ def validate(data: dict[str, Any]) -> None:
         "content_source", "content_source_type", "teacher_program_file",
         "official_program_verified", "source_content_complete",
         "source_conflicts",
-        "calendar_verified", "calendar_source",
+        "calendar_verified", "calendar_source", "calendar_source_type", "calendar_source_complete",
         "non_instruction_dates", "public_holidays", "quarters"
     ]
     missing = [k for k in required if k not in data]
@@ -638,6 +655,10 @@ def validate(data: dict[str, Any]) -> None:
         raise ValueError("Calendar must be verified before mandatory lesson dates can be generated")
     if not str(data.get("calendar_source", "")).strip():
         raise ValueError("calendar_source is required")
+    if data["calendar_source_type"] not in {"builtin_approved_calendar_2026_2027", "teacher_uploaded_calendar"}:
+        raise ValueError("calendar_source_type must use the built-in approved calendar or a teacher-uploaded calendar")
+    if data["calendar_source_complete"] is not True:
+        raise ValueError("Missing mandatory calendar data; request a source from the teacher and stop generation")
     try:
         excluded_dates = {date.fromisoformat(str(value)) for value in data["non_instruction_dates"]}
     except (TypeError, ValueError) as exc:

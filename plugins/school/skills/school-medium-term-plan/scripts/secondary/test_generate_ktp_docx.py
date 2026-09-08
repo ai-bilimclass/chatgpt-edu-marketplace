@@ -68,6 +68,8 @@ def make_data(hours_per_week: int) -> dict:
         "source_content_complete": True,
         "source_conflicts": [],
         "calendar_verified": True,
+        "calendar_source_type": "builtin_approved_calendar_2026_2027",
+        "calendar_source_complete": True,
         "calendar_source": "Официальный тестовый календарь",
         "non_instruction_dates": [],
         "public_holidays": [],
@@ -76,6 +78,30 @@ def make_data(hours_per_week: int) -> dict:
 
 
 class DynamicHoursValidationTest(unittest.TestCase):
+    def test_rejects_external_url_anywhere_in_ktp_input(self):
+        data = make_data(1)
+        data["calendar_source"] = "https://example.org/calendar"
+        with self.assertRaisesRegex(ValueError, "External URLs are forbidden"):
+            validate(data)
+
+    def test_rejects_external_url_field_in_nested_calendar_data(self):
+        data = make_data(1)
+        data["public_holidays"] = [{"url": "external-source"}]
+        with self.assertRaisesRegex(ValueError, "External URL fields are forbidden"):
+            validate(data)
+
+    def test_rejects_unapproved_calendar_source_type(self):
+        data = make_data(1)
+        data["calendar_source_type"] = "official_web_search"
+        with self.assertRaisesRegex(ValueError, "built-in approved calendar or a teacher-uploaded calendar"):
+            validate(data)
+
+    def test_missing_calendar_data_stops_for_teacher_source(self):
+        data = make_data(1)
+        data["calendar_source_complete"] = False
+        with self.assertRaisesRegex(ValueError, "request a source from the teacher"):
+            validate(data)
+
     def test_accepts_zero_width_formatting_inside_objective_code(self):
         data = make_data(1)
         data["quarters"][0]["lessons"][0]["learning_objectives"] = (
