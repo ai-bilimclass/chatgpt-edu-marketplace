@@ -129,6 +129,7 @@ class RouterContractTests(unittest.TestCase):
         self.assertIn('"Ustaz BilimAI Mektep" плагині', WELCOME)
         self.assertIn('The "Ustaz BilimAI Mektep" plugin is designed', WELCOME)
         self.assertEqual(3, WELCOME.count("+7 708 376 69 03"))
+        self.assertEqual(3, WELCOME.count("https://wa.me/77083766903"))
 
     def test_welcome_is_once_and_monolingual(self):
         for phrase in (
@@ -137,6 +138,16 @@ class RouterContractTests(unittest.TestCase):
         ):
             self.assertIn(phrase, SKILL + WELCOME)
         self.assertNotIn("&#" + "x20;", WELCOME)
+
+    def test_welcome_contact_is_complete_clickable_and_chat_only(self):
+        for phrase in (
+            "welcome_shown: true", "contact_notice_shown: true",
+            "выбранной языковой версии целиком", "рабочей Markdown-ссылкой WhatsApp",
+            "не переносить в КТП", "пустые таблицы", "HTML-сущности",
+        ):
+            self.assertIn(phrase, WELCOME)
+        self.assertIn("welcome_state", SKILL)
+        self.assertIn("Ошибка, обрезанный ответ или отсутствующая ссылка не считаются показом", SKILL)
 
 
 if __name__ == "__main__":
