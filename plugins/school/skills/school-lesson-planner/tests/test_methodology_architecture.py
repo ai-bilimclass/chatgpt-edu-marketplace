@@ -189,6 +189,16 @@ class MethodologyArchitectureTests(unittest.TestCase):
         for status in ("verified", "usable_with_limits", "rejected"):
             self.assertIn(status, self.search_policy)
 
+    def test_external_source_uses_required_compact_schema(self):
+        for field in (
+            "source_type: external", 'source_url: ""', 'source_title: ""',
+            'source_organization: ""', 'checked_at: ""',
+            'source_status: ""', 'adaptation_note: ""',
+        ):
+            self.assertIn(field, self.search_policy)
+        self.assertIn("Случайный блог не считать подтверждением эффективности", self.search_policy)
+        self.assertIn("Гибридный поиск не применяется к КТП, учебникам", self.handoff)
+
     def test_external_technique_is_not_persisted_automatically(self):
         self.assertIn("не добавлять автоматически в постоянный встроенный каталог", self.search_policy)
         self.assertIn("действует только в текущем плане", self.search_policy)
