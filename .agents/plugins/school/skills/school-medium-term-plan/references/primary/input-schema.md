@@ -26,7 +26,7 @@
   "school_week": "5-day",
   "lesson_weekdays": [0, 1, 3, 4],
   "extended_objectives": [],
-  "content_source": "Точное название, реквизиты или ссылка на типовую учебную программу",
+  "content_source": "Точное название и реквизиты загруженной учителем учебной программы",
   "content_source_type": "teacher_uploaded_program",
   "teacher_program_file": "имя-загруженного-учителем-файла.pdf",
   "cross_cutting_themes": ["Ортақ тақырып 1", "Ортақ тақырып 2"],
@@ -36,20 +36,12 @@
   "official_program_verified": true,
   "source_content_complete": true,
   "source_conflicts": [],
-  "calendar_verified": true,
   "calendar_source_type": "builtin_approved_calendar_2026_2027",
-  "calendar_source_complete": true,
-  "calendar_source": "Плагиннің 2026–2027 оқу жылына арналған бекітілген күнтізбесі, №213",
+  "teacher_calendar_file": "",
+  "teacher_calendar_additions": [],
+  "teacher_non_instruction_dates": [],
+  "calendar_conflicts": [],
   "summative_assessment_required": false,
-  "non_instruction_dates": ["2026-12-16"],
-  "public_holidays": [
-    {
-      "date": "2026-12-16",
-      "name": "Қазақстан Республикасының Тәуелсіздік күні",
-      "official_transfer_date": null,
-      "teacher_transfer_date": null
-    }
-  ],
   "quarters": [
     {
       "name": "I четверть",
@@ -75,7 +67,9 @@
 
 ## Верхний уровень
 
-Обязательные ключи: `subject`, `grade`, `education_level`, `instruction_language`, `profile_direction`, `curriculum_order`, `curriculum_appendix`, `curriculum_revision_date`, `curriculum_plan_order`, `curriculum_plan_variant`, `curriculum_plan_revision_date`, `subject_profile`, `language`, `requested_language`, `objectives_language`, `language_mismatch_confirmed`, `academic_year`, `hours_per_week`, `total_hours`, `lesson_weekdays`, `content_source`, `content_source_type`, `teacher_program_file`, `cross_cutting_themes`, `lesson_topics_confirmed_by_teacher`, `official_program_verified`, `source_content_complete`, `source_conflicts`, `calendar_verified`, `calendar_source`, `non_instruction_dates`, `public_holidays`, `summative_assessment_required`, `quarters`.
+Обязательные входные ключи: `subject`, `grade`, `education_level`, `instruction_language`, `profile_direction`, `curriculum_order`, `curriculum_appendix`, `curriculum_revision_date`, `curriculum_plan_order`, `curriculum_plan_variant`, `curriculum_plan_revision_date`, `subject_profile`, `language`, `requested_language`, `objectives_language`, `language_mismatch_confirmed`, `academic_year`, `hours_per_week`, `total_hours`, `lesson_weekdays`, `content_source`, `content_source_type`, `teacher_program_file`, `cross_cutting_themes`, `lesson_topics_confirmed_by_teacher`, `official_program_verified`, `source_content_complete`, `source_conflicts`, `calendar_source_type`, `teacher_calendar_file`, `teacher_calendar_additions`, `teacher_non_instruction_dates`, `calendar_conflicts`, `summative_assessment_required`, `quarters`.
+
+Поля `calendar_verified`, `calendar_source_complete`, `calendar_source`, `non_instruction_dates` и `public_holidays` являются вычисляемыми: генератор заполняет их после загрузки и проверки общего календарного справочника. Модель не назначает им значения самостоятельно.
 
 `academic_year` — фиксированное внутреннее значение `2026–2027`. Заполнять автоматически; не запрашивать и не просить подтвердить у учителя.
 
@@ -99,7 +93,7 @@
 
 Не передавать цветовую тему. Генератор всегда создаёт официальное чёрно-белое оформление: белый фон, чёрный текст и чёрные границы.
 
-`public_holidays` — загрузить из `official-holidays-2026-2027.json`. Включить как исходные праздничные дни, так и отдельные `observed_day_off`, образованные переносом выходного дня по закону. Все их даты одновременно включить в `non_instruction_dates`; поле `official_transfer_date` оставить `null`, поскольку перенесённый выходной — не дата проведения урока. Если такой день совпадает с недельным слотом, генератор объединяет урок со следующим допустимым уроком четверти, а при невозможности — с предыдущим. Для 1 класса дополнительно включить в `non_instruction_dates` даты 2027-02-08–2027-02-14; для 2–4 классов их не включать. Поле `note` заранее не размечать.
+Генератор загружает `public_holidays` и базовый `non_instruction_dates` из общего `../calendar/official-holidays-2026-2027.json`. Учительские дополнения передаются отдельно и не могут заменять встроенные даты. Для 1 класса генератор дополнительно включает в `non_instruction_dates` даты 2027-02-08–2027-02-14; для 2–4 классов их не включает. Поле `note` заранее не размечать.
 
 До каждого запуска проверить `pending_variable_holidays`. Если дата отсутствует во встроенном календаре и файлах учителя, не вычислять и не искать её самостоятельно: остановить генерацию и запросить подтверждающий источник у учителя.
 
@@ -113,7 +107,7 @@
 
 `official_program_verified` устанавливать в `true` только после проверки внутренней полноты загруженной учителем программы без обращения к интернету. При `teacher_provided_objectives` допускается `false`; в этом случае указывать, что цели предоставлены учителем. `source_content_complete` в обоих режимах должно быть `true` только при наличии целей по всем четырём четвертям. Не требовать готовых поурочных тем: укрупнённое содержание и цели начальной школы методически разворачиваются в темы уроков.
 
-`calendar_source_type` допускает только `builtin_approved_calendar_2026_2027` или `teacher_uploaded_calendar`. `calendar_source_complete` устанавливать в `true` только при наличии всех обязательных сведений. Входные данные КТП не должны содержать внешние URL. Если обязательных календарных сведений нет во встроенном календаре и файлах учителя, генерацию остановить и запросить источник у учителя.
+`calendar_source_type` допускает только `builtin_approved_calendar_2026_2027` или `builtin_with_teacher_additions`. Во втором случае обязательны непустой `teacher_calendar_file` и подтверждённые данные в `teacher_calendar_additions` и/или `teacher_non_instruction_dates`. `calendar_conflicts` должен оставаться пустым; при конфликте генерацию остановить и запросить уточнение. Входные данные КТП не должны содержать внешние URL. Если обязательных календарных сведений нет во встроенном календаре и файлах учителя, генерацию остановить и запросить источник у учителя.
 
 `source_conflicts` — список объектов с ключами `location`, `type`, `source_text`, `resolution`. Использовать `[]`, если противоречий нет. Не исправлять источник молча.
 

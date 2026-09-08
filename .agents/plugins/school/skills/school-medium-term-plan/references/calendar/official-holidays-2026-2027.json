@@ -3,6 +3,26 @@
   "verified_on": "2026-08-15",
   "source_type": "builtin_approved_calendar_2026_2027",
   "source_note": "КТП құрастыру кезінде сыртқы веб-поиск жасамау; жетіспейтін міндетті деректі мұғалімнен сұрау",
+  "non_instruction_dates": [
+    "2026-10-25",
+    "2026-10-26",
+    "2026-12-16",
+    "2027-01-01",
+    "2027-01-02",
+    "2027-01-04",
+    "2027-01-07",
+    "2027-03-08",
+    "2027-03-15",
+    "2027-03-21",
+    "2027-03-22",
+    "2027-03-23",
+    "2027-03-24",
+    "2027-05-01",
+    "2027-05-03",
+    "2027-05-07",
+    "2027-05-09",
+    "2027-05-10"
+  ],
   "public_holidays": [
     {"date": "2026-10-25", "name": "Республика күні", "kind": "national_holiday", "official_transfer_date": null, "teacher_transfer_date": null},
     {"date": "2026-10-26", "name": "Республика күніне байланысты ауыстырылған демалыс күні", "kind": "observed_day_off", "based_on": "2026-10-25", "official_transfer_date": null, "teacher_transfer_date": null},
@@ -27,8 +47,9 @@
     {
       "name": "Құрбан айттың бірінші күні",
       "year": 2027,
-      "status": "not_officially_published_as_of_verification_date",
+      "status": "requires_teacher_source",
       "instruction": "Күнді болжамау және сыртқы дереккөзден іздемеу; мұғалімнен растайтын файл немесе нақты күнді сұрап, жауапқа дейін КТП генерациясын тоқтату"
     }
   ]
 }
+

@@ -41,7 +41,7 @@ class NoExternalSearchTests(unittest.TestCase):
         self.assertNotIn("проверить самостоятельно по официальным источникам", policy)
 
     def test_builtin_holiday_catalog_has_no_url_fields(self):
-        payload = json.loads((ROOT / "references" / "primary" / "official-holidays-2026-2027.json").read_text(encoding="utf-8"))
+        payload = json.loads((ROOT / "references" / "calendar" / "official-holidays-2026-2027.json").read_text(encoding="utf-8"))
 
         def keys(value):
             if isinstance(value, dict):
@@ -52,7 +52,10 @@ class NoExternalSearchTests(unittest.TestCase):
                 for child in value:
                     yield from keys(child)
 
-        self.assertNotIn("url", set(keys(payload)))
+        catalog_keys = set(keys(payload))
+        self.assertNotIn("url", catalog_keys)
+        self.assertNotIn("source_url", catalog_keys)
+        self.assertEqual(payload["source_type"], "builtin_approved_calendar_2026_2027")
 
 
 if __name__ == "__main__":

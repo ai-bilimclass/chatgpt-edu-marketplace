@@ -2,6 +2,7 @@
 import argparse
 import json
 import re
+import sys
 import zipfile
 from collections import Counter
 from datetime import date, timedelta
@@ -15,6 +16,12 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from calendar_contract import apply_calendar_contract
 
 FONT = "Times New Roman"
 SIZE = Pt(12)
@@ -498,6 +505,14 @@ def reject_external_urls(value: Any, path: str = "input") -> None:
 
 def validate(data: dict[str, Any]) -> None:
     reject_external_urls(data)
+    calendar_input_fields = [
+        "calendar_source_type", "teacher_calendar_file", "teacher_calendar_additions",
+        "teacher_non_instruction_dates", "calendar_conflicts",
+    ]
+    missing_calendar_fields = [key for key in calendar_input_fields if key not in data]
+    if missing_calendar_fields:
+        raise ValueError(f"Missing required calendar input fields: {', '.join(missing_calendar_fields)}")
+    apply_calendar_contract(data)
     normalize_objective_codes_in_data(data)
     validate_unicode_value(data)
     required = [
@@ -513,6 +528,8 @@ def validate(data: dict[str, Any]) -> None:
         "official_program_verified", "source_content_complete",
         "source_conflicts",
         "calendar_verified", "calendar_source", "calendar_source_type", "calendar_source_complete",
+        "teacher_calendar_file", "teacher_calendar_additions", "teacher_non_instruction_dates",
+        "calendar_conflicts",
         "non_instruction_dates", "public_holidays", "summative_assessment_required", "quarters"
     ]
     missing = [k for k in required if k not in data]
@@ -635,14 +652,8 @@ def validate(data: dict[str, Any]) -> None:
         raise ValueError("A five-day school week cannot schedule lessons on Saturday or Sunday")
     if school_week == "6-day" and any(value > 5 for value in weekdays):
         raise ValueError("A six-day school week cannot schedule lessons on Sunday")
-    if data.get("calendar_verified") is not True:
-        raise ValueError("Calendar must be verified before mandatory lesson dates can be generated")
     if not str(data.get("calendar_source", "")).strip():
         raise ValueError("calendar_source is required")
-    if data["calendar_source_type"] not in {"builtin_approved_calendar_2026_2027", "teacher_uploaded_calendar"}:
-        raise ValueError("calendar_source_type must use the built-in approved calendar or a teacher-uploaded calendar")
-    if data["calendar_source_complete"] is not True:
-        raise ValueError("Missing mandatory calendar data; request a source from the teacher and stop generation")
     try:
         excluded_dates = {date.fromisoformat(str(value)) for value in data["non_instruction_dates"]}
     except (TypeError, ValueError) as exc:

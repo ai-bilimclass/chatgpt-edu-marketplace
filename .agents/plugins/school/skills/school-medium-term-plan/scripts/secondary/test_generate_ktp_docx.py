@@ -68,9 +68,18 @@ def make_data(hours_per_week: int) -> dict:
         "source_content_complete": True,
         "source_conflicts": [],
         "calendar_verified": True,
-        "calendar_source_type": "builtin_approved_calendar_2026_2027",
-        "calendar_source_complete": True,
-        "calendar_source": "Официальный тестовый календарь",
+        "calendar_source_type": "builtin_with_teacher_additions",
+        "teacher_calendar_file": "teacher-test-calendar.pdf",
+        "teacher_calendar_additions": [{
+            "date": "2027-05-27",
+            "name": "Тестовое подтверждение переменного праздника",
+            "kind": "teacher_confirmed_day_off",
+            "resolves_pending": "Құрбан айттың бірінші күні",
+            "official_transfer_date": None,
+            "teacher_transfer_date": None,
+        }],
+        "teacher_non_instruction_dates": [],
+        "calendar_conflicts": [],
         "non_instruction_dates": [],
         "public_holidays": [],
         "quarters": quarters,
@@ -93,14 +102,25 @@ class DynamicHoursValidationTest(unittest.TestCase):
     def test_rejects_unapproved_calendar_source_type(self):
         data = make_data(1)
         data["calendar_source_type"] = "official_web_search"
-        with self.assertRaisesRegex(ValueError, "built-in approved calendar or a teacher-uploaded calendar"):
+        with self.assertRaisesRegex(ValueError, "built-in approved calendar"):
             validate(data)
 
-    def test_missing_calendar_data_stops_for_teacher_source(self):
+    def test_pending_mandatory_calendar_data_stops_for_builtin_only(self):
         data = make_data(1)
-        data["calendar_source_complete"] = False
+        data["calendar_source_type"] = "builtin_approved_calendar_2026_2027"
+        data["teacher_calendar_file"] = ""
+        data["teacher_calendar_additions"] = []
         with self.assertRaisesRegex(ValueError, "request a source from the teacher"):
             validate(data)
+
+    def test_builtin_calendar_replaces_model_supplied_calendar_arrays(self):
+        data = make_data(1)
+        data["public_holidays"] = []
+        data["non_instruction_dates"] = []
+        validate(data)
+        self.assertIn("2026-12-16", data["non_instruction_dates"])
+        self.assertTrue(any(item["date"] == "2026-12-16" for item in data["public_holidays"]))
+        self.assertTrue(data["calendar_source_complete"])
 
     def test_accepts_zero_width_formatting_inside_objective_code(self):
         data = make_data(1)
@@ -576,10 +596,9 @@ class DynamicHoursValidationTest(unittest.TestCase):
 
     def test_holiday_lesson_moves_to_next_lesson_and_is_marked(self):
         data = make_data(1)
-        data["non_instruction_dates"] = ["2026-09-08"]
-        data["public_holidays"] = [{
+        data["teacher_calendar_additions"].append({
             "date": "2026-09-08", "name": "Тестовый праздник", "official_transfer_date": None
-        }]
+        })
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "holiday.docx"
             build(data, output)
@@ -594,11 +613,10 @@ class DynamicHoursValidationTest(unittest.TestCase):
 
     def test_holiday_uses_official_transfer_date_first(self):
         data = make_data(1)
-        data["non_instruction_dates"] = ["2026-09-08"]
-        data["public_holidays"] = [{
+        data["teacher_calendar_additions"].append({
             "date": "2026-09-08", "name": "Тестовый праздник",
             "official_transfer_date": "2026-09-12"
-        }]
+        })
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "official-transfer.docx"
             build(data, output)
@@ -606,12 +624,12 @@ class DynamicHoursValidationTest(unittest.TestCase):
             self.assertEqual(affected["date"], "12.09.2026")
             self.assertIn("официальный перенос", affected["note"])
 
-    def test_rejects_holiday_missing_from_non_instruction_dates(self):
+    def test_rejects_teacher_addition_replacing_builtin_date(self):
         data = make_data(1)
-        data["public_holidays"] = [{
-            "date": "2026-09-08", "name": "Тестовый праздник", "official_transfer_date": None
-        }]
-        with self.assertRaisesRegex(ValueError, "must also be in non_instruction_dates"):
+        data["teacher_calendar_additions"].append({
+            "date": "2026-12-16", "name": "Подмена встроенного праздника"
+        })
+        with self.assertRaisesRegex(ValueError, "must not replace a built-in date"):
             validate(data)
 
     def test_asks_teacher_when_no_in_quarter_transfer_date_exists(self):
@@ -624,12 +642,11 @@ class DynamicHoursValidationTest(unittest.TestCase):
             "2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22",
             "2026-09-29", "2026-10-06", "2026-10-13", "2026-10-20",
         ]
-        data["non_instruction_dates"] = holiday_dates
-        data["public_holidays"] = [
+        data["teacher_calendar_additions"].extend(
             {"date": value, "name": "Тест мерекесі", "official_transfer_date": None,
              "teacher_transfer_date": None}
             for value in holiday_dates
-        ]
+        )
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "needs-teacher-date.docx"
             with self.assertRaisesRegex(
@@ -641,11 +658,10 @@ class DynamicHoursValidationTest(unittest.TestCase):
 
     def test_uses_teacher_confirmed_transfer_date(self):
         data = make_data(1)
-        data["non_instruction_dates"] = ["2026-09-08"]
-        data["public_holidays"] = [{
+        data["teacher_calendar_additions"].append({
             "date": "2026-09-08", "name": "Тест мерекесі",
             "official_transfer_date": None, "teacher_transfer_date": "2026-09-12"
-        }]
+        })
         data["language"] = "kk"
         data["requested_language"] = "kk"
         data["objectives_language"] = "kk"
