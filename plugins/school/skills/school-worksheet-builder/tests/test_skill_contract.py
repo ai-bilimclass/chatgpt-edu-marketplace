@@ -44,13 +44,17 @@ class WorksheetSkillContractTests(unittest.TestCase):
         self.assertIn("Если handoff содержит блок `methodology`", self.skill)
         self.assertIn("Не выбирать заново основной или специализированный метод", self.skill)
 
-    def test_version_two_handoff_is_synchronized_to_tasks(self):
+    def test_version_three_handoff_is_synchronized_to_tasks(self):
         for field in ("schema_version", "content_boundaries", "episodes", "canonical_tasks", "canonical_answers"):
             self.assertIn(field, self.skill)
         self.assertIn("episode_id → canonical_task_id → worksheet_task_id", self.skill)
         self.assertIn("source_lesson_content_version", self.skill)
         self.assertIn('status: "requires_regeneration"', self.skill)
         self.assertIn("без заявления об эпизодной синхронизации", self.skill)
+        self.assertIn("schema_version` равен `3.0", self.skill)
+        self.assertIn("validation_status` равен `strict", self.skill)
+        self.assertIn("validate_derivative_alignment.py", self.skill)
+        self.assertIn("результат обязан быть `PASS`", self.skill)
 
     def test_math_objects_remain_native_and_editable(self):
         for token in ("math_objects", "math_id", "m:oMath", "m:oMathPara", "validate_editable_math.py"):

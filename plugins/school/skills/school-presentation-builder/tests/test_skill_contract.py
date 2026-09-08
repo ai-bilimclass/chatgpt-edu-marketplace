@@ -39,13 +39,17 @@ class PresentationSkillContractTests(unittest.TestCase):
         self.assertIn("Не выбирать другую основную методику", self.skill)
         self.assertIn("не являются активным методом обучения", self.skill)
 
-    def test_version_two_handoff_is_synchronized_to_slides(self):
+    def test_version_three_handoff_is_synchronized_to_slides(self):
         for field in ("schema_version", "content_boundaries", "episodes", "canonical_tasks", "canonical_answers"):
             self.assertIn(field, self.skill)
         self.assertIn("episode_id → canonical_task_id → slide_id", self.skill)
         self.assertIn("source_lesson_content_version", self.skill)
         self.assertIn('status: "requires_regeneration"', self.skill)
         self.assertIn("без заявления об эпизодной синхронизации", self.skill)
+        self.assertIn("schema_version` равен `3.0", self.skill)
+        self.assertIn("validation_status` равен `strict", self.skill)
+        self.assertIn("validate_derivative_alignment.py", self.skill)
+        self.assertIn("результат обязан быть `PASS`", self.skill)
 
     def test_math_objects_use_native_powerpoint_math(self):
         for token in ("math_objects", "math_id", "a14:m", "m:oMath", "mc:AlternateContent", "validate_editable_math.py"):
