@@ -42,6 +42,9 @@ class DerivativeAlignmentTests(unittest.TestCase):
                     "canonical_task_id": task["canonical_task_id"],
                     id_field: f"{artifact_type}-item-{index:02d}",
                     "descriptor": task["descriptor"],
+                    "descriptor_scores": deepcopy(task["descriptor_scores"]),
+                    "total_points": task["total_points"],
+                    "support": task["support"],
                 }
                 for index, task in enumerate(self.handoff["canonical_tasks"], start=1)
             ],
@@ -60,6 +63,23 @@ class DerivativeAlignmentTests(unittest.TestCase):
         derivative["items"][0]["descriptor"] += " Изменено."
         with self.assertRaisesRegex(ALIGN.AlignmentError, "Descriptor drift"):
             ALIGN.validate_alignment(self.handoff, derivative)
+
+    def test_scoring_drift_and_legacy_loss_are_rejected(self):
+        for field in ("descriptor_scores", "total_points"):
+            derivative = self.derivative("worksheet")
+            if field == "descriptor_scores":
+                derivative["items"][0][field][0]["text"] += " changed"
+            else:
+                derivative["items"][0][field] += 1
+            with self.assertRaises(ALIGN.AlignmentError):
+                ALIGN.validate_alignment(self.handoff, derivative)
+        derivative = self.derivative("worksheet")
+        del derivative["items"][0]["descriptor_scores"]
+        with self.assertRaises(ALIGN.AlignmentError):
+            ALIGN.validate_alignment(self.handoff, derivative)
+        del self.ksp["stages"][0]["tasks"][0]["descriptor_scores"]
+        with self.assertRaises(ALIGN.AlignmentError):
+            ALIGN.handoff_from_ksp(self.ksp, "legacy")
 
     def test_missing_canonical_task_is_rejected(self):
         derivative = self.derivative("presentation")

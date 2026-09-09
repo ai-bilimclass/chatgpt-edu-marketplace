@@ -83,7 +83,7 @@ class WorksheetSkillContractTests(unittest.TestCase):
     def test_primary_does_not_use_abc_or_summative_logic(self):
         self.assertIn("Для 1–4 классов не использовать A/B/C", self.skill)
         self.assertIn("Не переносить БЖБ/ТЖБ", self.skill)
-        self.assertIn("по умолчанию не использовать баллы", self.skill)
+        self.assertIn("не переводить баллы дескрипторов автоматически", self.skill)
 
     def test_secondary_requires_abc_bloom_and_counts(self):
         for phrase in ("Уровень сложности", "Навыки Блума", "Количество заданий"):

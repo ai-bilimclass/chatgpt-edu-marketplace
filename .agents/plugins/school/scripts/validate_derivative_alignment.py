@@ -9,6 +9,8 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from scored_tasks import scoring
 
 
 class AlignmentError(ValueError):
@@ -33,7 +35,13 @@ def handoff_from_ksp(ksp: dict[str, Any], lesson_content_version: str) -> dict[s
     canonical_tasks = []
     for stage in ksp.get("stages", []):
         for task in stage.get("tasks", []):
+            try:
+                scores = scoring(task)
+            except ValueError as exc:
+                raise AlignmentError(str(exc)) from exc
             canonical_tasks.append({
+                **scores,
+                "work_forms": deepcopy(stage.get("work_forms", [])),
                 "canonical_task_id": _text(task.get("canonical_task_id"), "canonical_task_id"),
                 "objective_refs": deepcopy(task.get("objective_refs", [])),
                 "instruction": _text(task.get("instruction"), "instruction"),
@@ -48,6 +56,8 @@ def handoff_from_ksp(ksp: dict[str, Any], lesson_content_version: str) -> dict[s
         raise AlignmentError("Strict handoff contains duplicate canonical_task_id values.")
     return {
         "schema_version": "3.0",
+        "language": ksp.get("language"),
+        "grade": ksp.get("grade"),
         "lesson_content_version": _text(lesson_content_version, "lesson_content_version"),
         "ready_for_derivatives": True,
         "validation_status": "strict",
@@ -88,6 +98,14 @@ def validate_alignment(handoff: dict[str, Any], derivative: dict[str, Any]) -> d
         descriptor = _text(item.get("descriptor"), f"items[{index}].descriptor")
         if descriptor != canonical[task_id].get("descriptor"):
             raise AlignmentError(f"Descriptor drift detected for {task_id}.")
+        if artifact_type == "worksheet":
+            try:
+                source_scores = scoring(canonical[task_id])
+                target_scores = scoring(item)
+            except ValueError as exc:
+                raise AlignmentError(str(exc)) from exc
+            if source_scores != target_scores:
+                raise AlignmentError(f"Scored descriptor or support drift detected for {task_id}.")
     missing = sorted(set(canonical) - seen)
     if missing:
         raise AlignmentError("Derivative is missing canonical tasks: " + ", ".join(missing))

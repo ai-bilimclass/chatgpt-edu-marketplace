@@ -179,3 +179,13 @@ After the script succeeds, render the DOCX with the canonical renderer from the 
 - Set Latin, Cyrillic, and East Asian font mappings to Times New Roman in the DOCX XML.
 - Use readable headings, stable tables, repeating header rows when tables span pages, adequate cell padding, and consistent spacing.
 - Render every final DOCX to PNG and inspect all pages before delivery.
+
+## Required scoring and work forms
+
+For all new schema 3.0 inputs, each learning stage must include non-empty `work_forms`: an ordered list of `individual`, `pair`, `group`, or `whole_class`. The builder localizes these labels and renders them bold in Teacher actions beside the bold method labels.
+
+Each task must include `descriptor_scores`, a non-empty array of objects such as `{"text": "Selects a testable question", "points": 1}`. Each point value is a positive integer. Keep the canonical `descriptor` text and the scored items semantically aligned. Optional `total_points` must equal their sum; otherwise the builder computes it. Optional `support` contains concrete scaffolding. The output displays a bold total heading, every scored item, and a bold Support label. Inputs without scores must be completed explicitly; never silently invent point allocations for old files. See [shared contract](../../../../references/scored-descriptors.md).
+
+В таблице хода урока показывать только конкретные приёмы и виды работы полужирным. Названия и объяснения педагогических моделей (Rosenshine, UDL и другие, включая переводы) размещать в методическом приложении. Правило одинаково для 1–4 и 5–11 классов и языков KK/RU/EN; см. [общий контракт](../../../../references/scored-descriptors.md).
+
+`action_work_forms`: one list of work-form IDs per teacher action, in matching order. Required when multiple forms occur; no guessing. A learning stage requires at least one practical technique. Legacy 2.0 input remains readable but cannot generate a scored document until explicitly migrated.

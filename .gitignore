@@ -1,0 +1,4 @@
+.local-qa-env/
+.local-qa-output/
+__pycache__/
+*.pyc

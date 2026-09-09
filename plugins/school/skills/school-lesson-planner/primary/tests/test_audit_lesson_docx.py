@@ -44,6 +44,16 @@ def row(*cells: str) -> str:
 
 
 class AuditTests(unittest.TestCase):
+    def test_frameworks_belong_in_appendix_in_all_languages(self):
+        for name in ("Rosenshine’s Principles of Instruction", "Принципы обучения Розеншайна", "Розеншайнның оқыту қағидалары", "Universal Design for Learning", "универсальный дизайн обучения", "оқытудың әмбебап дизайны"):
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "plan.docx"
+                make_docx(path, "<w:tbl>" + row("Stage 40 min", name) + "</w:tbl>")
+                self.assertIn("METHODOLOGY_IN_TEACHER_ACTIONS", {f.code for f in MODULE.audit(path, 40, False)})
+                for technique in ("Диаграмма Венна", "Қатені тап және түсіндір", "Find and explain the error"):
+                    make_docx(path, "<w:tbl>" + row("Stage 40 min", technique) + "</w:tbl>" + p("Methodological Appendix") + p(name))
+                    self.assertNotIn("METHODOLOGY_IN_TEACHER_ACTIONS", {f.code for f in MODULE.audit(path, 40, False)})
+
     def test_valid_plan_has_no_errors(self):
         body = "".join([
             p("Цели обучения: 2.1.2.3 использовать данные"),

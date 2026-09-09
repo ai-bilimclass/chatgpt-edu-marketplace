@@ -129,6 +129,27 @@ REQUIRED_METHOD = {"method_id", "type", "name"}
 ACTIVITY_TYPES = {"organization", "learning"}
 TASK_TYPES = {"oral", "written", "practical", "laboratory", "group", "reflection", "homework"}
 METHOD_TYPES = {"primary", "supporting", "technique"}
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts"))
+from lesson_table_policy import contains_framework
+from scored_tasks import scoring
+WORK_FORMS = {
+    "ru": {"individual": "Индивидуальная работа", "pair": "Парная работа", "group": "Групповая работа", "whole_class": "Фронтальная работа"},
+    "kk": {"individual": "Жеке жұмыс", "pair": "Жұптық жұмыс", "group": "Топтық жұмыс", "whole_class": "Ұжымдық жұмыс"},
+    "en": {"individual": "Individual work", "pair": "Pair work", "group": "Group work", "whole_class": "Whole-class work"},
+}
+
+
+def scored_heading(language: str, total: int) -> str:
+    if language == "ru":
+        unit = "баллов" if 11 <= total % 100 <= 14 else ("балл" if total % 10 == 1 else "балла" if 2 <= total % 10 <= 4 else "баллов")
+        return f"Дескрипторы — {total} {unit}:"
+    if language == "kk":
+        return f"Дескрипторлар — {total} балл:"
+    return f"Descriptors — {total} {'point' if total == 1 else 'points'}:"
+
+
+SUPPORT_LABEL = {"ru": "Поддержка: ", "kk": "Қолдау: ", "en": "Support: "}
+TASK_LABEL = {"ru": "Задание", "kk": "Тапсырма", "en": "Task"}
 METHOD_PREFIX = {
     "kk": "Әдіс-тәсіл: ",
     "ru": "Метод/приём: ",
@@ -322,6 +343,21 @@ def validate_task(
     if normalized_text(result["descriptor"]) in {normalized_text(value) for value in NON_DESCRIPTORS}:
         raise KSPError(f"Task {task_id} uses feedback or assessment mode instead of a descriptor.")
     descriptor_owners.setdefault(normalized_text(result["descriptor"]), []).append(task_id)
+    scores = result.get("descriptor_scores")
+    if not isinstance(scores, list) or not scores:
+        raise KSPError(f"Task {task_id} requires descriptor_scores with explicit points.")
+    for item in scores:
+        if (not isinstance(item, dict) or not isinstance(item.get("text"), str)
+                or not item["text"].strip() or type(item.get("points")) is not int
+                or item["points"] <= 0):
+            raise KSPError(f"Task {task_id}: each descriptor score needs text and positive integer points.")
+    total = sum(item["points"] for item in scores)
+    if "total_points" in result and (type(result["total_points"]) is not int or result["total_points"] != total):
+        raise KSPError(f"Task {task_id}: total_points must equal the descriptor sum.")
+    result["total_points"] = total
+    if "support" in result and not isinstance(result["support"], str):
+        raise KSPError(f"Task {task_id}: support must be text.")
+    result.update(scoring(result))
     return result
 
 
@@ -339,6 +375,10 @@ def validate_method(method: Any, *, stage_index: int, seen_method_ids: set[str])
         raise KSPError(f"Method {result['method_id']} has unsupported type: {result['type']}")
     if "***" in result["name"] or ":" in result["name"][:24]:
         raise KSPError(f"Method {result['method_id']} must contain only the method name, without markup or prefix.")
+    if contains_framework(result["name"]):
+        raise KSPError("Put methodology frameworks in the methodological appendix; stage methods must name practical techniques.")
+    if any(result["name"].casefold() == label.casefold() for labels in WORK_FORMS.values() for label in labels.values()):
+        raise KSPError("A work form is not a practical technique.")
     return result
 
 
@@ -461,7 +501,23 @@ def validate_input(raw: Any) -> dict[str, Any]:
             if activity_type not in ACTIVITY_TYPES:
                 raise KSPError(f"Stage {index} has unsupported activity_type: {activity_type}")
             stage["activity_type"] = activity_type
+            forms = stage.get("work_forms", [])
+            if (not isinstance(forms, list)
+                    or any(not isinstance(form, str) or form not in WORK_FORMS["ru"] for form in forms)
+                    or (activity_type == "learning" and not forms)):
+                raise KSPError(f"Stage {index} requires valid work_forms.")
             stage["teacher_actions"] = content_items(stage["teacher_actions"])
+            bindings = stage.get("action_work_forms")
+            if bindings is None and len(forms) == 1:
+                bindings = [forms[:] for _ in stage["teacher_actions"]]
+            if activity_type == "learning" and (not isinstance(bindings, list)
+                    or len(bindings) != len(stage["teacher_actions"])
+                    or any(not isinstance(group, list) or not group or any(form not in forms for form in group) for group in bindings)
+                    or set(form for group in bindings for form in group) != set(forms)):
+                raise KSPError("action_work_forms must link each action to its explicit work forms; multiple forms cannot be inferred.")
+            stage["action_work_forms"] = bindings or [[] for _ in stage["teacher_actions"]]
+            if contains_framework(" ".join(stage["teacher_actions"])):
+                raise KSPError("Move methodology explanations from teacher actions to the methodological appendix.")
             if any("***" in action for action in stage["teacher_actions"]):
                 raise KSPError(f"Stage {index} teacher_actions must not contain Markdown emphasis markers.")
             if not isinstance(stage["methods"], list):
@@ -470,6 +526,8 @@ def validate_input(raw: Any) -> dict[str, Any]:
                 validate_method(method, stage_index=index, seen_method_ids=seen_method_ids)
                 for method in stage["methods"]
             ]
+            if activity_type == "learning" and not stage["methods"]:
+                raise KSPError("Every learning stage requires a concrete practical technique.")
             primary_method_seen = primary_method_seen or any(
                 method["type"] == "primary" for method in stage["methods"]
             )
@@ -774,11 +832,19 @@ def render_teacher_actions(cell, stage: dict[str, Any], language: str) -> None:
     entries = [
         (METHOD_PREFIX[language] + method["name"], True)
         for method in stage["methods"]
-    ] + [(action, False) for action in stage["teacher_actions"]]
+    ]
+    bindings = stage.get("action_work_forms")
+    if bindings is None:
+        if len(stage.get("work_forms", [])) != 1:
+            raise KSPError("Explicit action_work_forms required before rendering multiple work forms.")
+        bindings = [stage["work_forms"] for _ in stage["teacher_actions"]]
+    for action, forms in zip(stage["teacher_actions"], bindings):
+        entries.extend((WORK_FORMS[language][form], True) for form in forms)
+        entries.append((action, False))
     for index, (text, is_method) in enumerate(entries):
         paragraph = first if index == 0 else cell.add_paragraph()
         clear_paragraph(paragraph)
-        format_run(paragraph.add_run(text), bold=is_method, italic=is_method)
+        format_run(paragraph.add_run(text), bold=is_method, italic=is_method and text.startswith(METHOD_PREFIX[language]))
         paragraph.paragraph_format.space_after = Pt(0)
         paragraph.paragraph_format.space_before = Pt(0)
     cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
@@ -787,10 +853,14 @@ def render_teacher_actions(cell, stage: dict[str, Any], language: str) -> None:
 def rendered_task_columns(stage: dict[str, Any], language: str) -> tuple[list[str], list[str]]:
     learner_actions: list[str] = []
     assessment: list[str] = []
-    for task in stage["tasks"]:
-        task_id = task["canonical_task_id"]
-        learner_actions.append(f"{task_id}: {task['learner_action']}")
-        assessment.append(f"{task_id} — {LABELS[language]['descriptor']}: {task['descriptor']}")
+    for index, task in enumerate(stage["tasks"], 1):
+        task_id = f"{TASK_LABEL[language]} {index}"
+        learner_actions.append(f"{task_id}: {task['instruction']}")
+        learner_actions.append(task['learner_action'])
+        assessment.append(f"{task_id} — {scored_heading(language, task['total_points'])}")
+        assessment.extend(f"• {item['text']} — {item['points']};" for item in task["descriptor_scores"])
+        if task.get("support"):
+            assessment.append(SUPPORT_LABEL[language] + task["support"])
         assessment.append(f"{LABELS[language]['feedback']}: {task['feedback']}")
     if not learner_actions:
         learner_actions = ["—"]
@@ -813,6 +883,15 @@ def fill_stages(doc, data: dict[str, Any]) -> None:
             learner_items, assessment_items = rendered_task_columns(stage, language)
             set_cell_content(row.cells[2], learner_items)
             set_cell_content(row.cells[3], assessment_items)
+            for paragraph in row.cells[3].paragraphs:
+                text = paragraph.text
+                if any(text == f"{TASK_LABEL[language]} {index} — {scored_heading(language, task['total_points'])}" for index, task in enumerate(stage["tasks"], 1)):
+                    for run in paragraph.runs:
+                        format_run(run, bold=True)
+                elif text.startswith(SUPPORT_LABEL[language]):
+                    clear_paragraph(paragraph)
+                    format_run(paragraph.add_run(SUPPORT_LABEL[language]), bold=True)
+                    format_run(paragraph.add_run(text[len(SUPPORT_LABEL[language]):]), bold=False)
         else:
             set_cell_content(row.cells[1], stage["teacher_actions"], render_emphasis=True)
             set_cell_content(row.cells[2], stage["learner_actions"])
@@ -884,10 +963,18 @@ def appendix_render_order(appendix: dict[str, Any]) -> list[str]:
 
 def append_methodological_appendix(doc, data: dict[str, Any]) -> None:
     remove_deprecated_template_notes(doc)
-    break_paragraph = doc.add_paragraph()
-    break_paragraph.add_run().add_break(WD_BREAK.PAGE)
+    # A standalone page-break paragraph can spill to a blank page after a full table.
+    body = doc._element.body
+    for node in list(body)[::-1]:
+        if node.tag == qn("w:sectPr"):
+            continue
+        if node.tag == qn("w:p") and not node.xpath(".//w:t"):
+            body.remove(node)
+        else:
+            break
     labels = LABELS[data["language"]]
     add_heading(doc, labels["appendix"], 1)
+    doc.paragraphs[-1].paragraph_format.page_break_before = True
     appendix = data["methodological_appendix"]
     for key in appendix_render_order(appendix):
         add_heading(doc, labels[key], 2)
@@ -996,10 +1083,23 @@ def structural_audit(
             failures.append("The lesson-progress table must have five columns.")
         if expected_stages is not None and len(doc.tables[1].rows) != expected_stages + 1:
             failures.append("The generated lesson-stage row count is incorrect.")
+        for row in doc.tables[1].rows[1:]:
+            if contains_framework(" ".join(cell.text for cell in row.cells)):
+                failures.append("Move methodology frameworks from the lesson-progress table to the methodological appendix.")
         header_xml = doc.tables[1].rows[0]._tr.xml
         if "tblHeader" not in header_xml:
             failures.append("The lesson-progress table header is not marked to repeat.")
         if expected_stage_contract is not None and expected_language is not None:
+            reference_doc = Document()
+            reference_doc.add_table(rows=1, cols=2)
+            reference_doc.add_table(rows=1, cols=5)
+            fill_stages(reference_doc, {"schema_version": "3.0", "language": expected_language, "stages": expected_stage_contract})
+            for actual, expected in zip(doc.tables[1].rows[1:], reference_doc.tables[1].rows[1:]):
+                for column in (1, 3):
+                    def signature(cell):
+                        return [[(run.text, bool(run.bold), bool(run.italic)) for run in p.runs if run.text] for p in cell.paragraphs]
+                    if signature(actual.cells[column]) != signature(expected.cells[column]):
+                        failures.append("Teacher-action bindings or scored descriptor content/format differs from source.")
             prefix = METHOD_PREFIX[expected_language]
             for stage_index, (stage, row) in enumerate(
                 zip(expected_stage_contract, doc.tables[1].rows[1:]), start=1
@@ -1100,6 +1200,9 @@ def structural_audit(
 
 
 def build(data: dict[str, Any], output: Path) -> dict[str, Any]:
+    if data.get("schema_version") != "3.0":
+        raise KSPError("Legacy input cannot be rendered without explicit scored descriptors and work-form migration to schema 3.0.")
+    data = validate_input(data)
     template = TEMPLATES[data["language"]]
     if not template.exists():
         raise KSPError(f"Language template not found: {template}")
@@ -1235,6 +1338,10 @@ def example(*, test_fixture: bool = False) -> dict[str, Any]:
             "audit_summary": "Цели, критерии, задания и время согласованы."
         }
     }
+    for stage in data["stages"]:
+        stage["work_forms"] = ["individual"]
+        for task in stage["tasks"]:
+            task["descriptor_scores"] = [{"text": task["descriptor"], "points": 1}]
     if not test_fixture:
         data["intake_verification"]["confirmed_fields"] = []
     return data

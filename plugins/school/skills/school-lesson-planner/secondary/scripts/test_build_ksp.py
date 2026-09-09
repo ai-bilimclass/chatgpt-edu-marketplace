@@ -19,6 +19,74 @@ SPEC.loader.exec_module(BUILD_KSP)
 
 
 class BuildKSPTests(unittest.TestCase):
+    def test_frameworks_are_rejected_in_teacher_actions_and_technique_names(self):
+        for name in ("Rosenshine’s Principles of Instruction", "Принципы обучения Розеншайна", "Розеншайнның оқыту қағидалары", "Universal Design for Learning — UDL", "универсальный дизайн обучения", "оқытудың әмбебап дизайны"):
+            for field in ("name", "teacher_actions"):
+                data = self.data()
+                stage = data["stages"][0]
+                if field == "name":
+                    stage["methods"][0]["name"] = name
+                else:
+                    stage["teacher_actions"] = [name]
+                with self.subTest(name=name, field=field), self.assertRaisesRegex(BUILD_KSP.KSPError, "appendix"):
+                    BUILD_KSP.validate_input(data)
+
+    def test_practical_techniques_are_accepted_in_all_languages(self):
+        for name in ("Диаграмма Венна", "Найди и объясни ошибку", "Венн диаграммасы", "Қатені тап және түсіндір", "Venn diagram", "Find and explain the error"):
+            data = self.data()
+            data["stages"][0]["methods"][0]["name"] = name
+            BUILD_KSP.validate_input(data)
+
+    def test_scoring_and_work_forms_are_required(self):
+        for field, target in (("descriptor_scores", "task"), ("work_forms", "stage")):
+            data = self.data()
+            stage = data["stages"][0]
+            del (stage["tasks"][0] if target == "task" else stage)[field]
+            with self.assertRaises(BUILD_KSP.KSPError):
+                BUILD_KSP.validate_input(data)
+
+    def test_descriptor_points_and_sum_are_validated(self):
+        for points in (0, -1, True, 1.5, "1"):
+            data = self.data()
+            data["stages"][0]["tasks"][0]["descriptor_scores"][0]["points"] = points
+            with self.assertRaises(BUILD_KSP.KSPError):
+                BUILD_KSP.validate_input(data)
+        data = self.data()
+        data["stages"][0]["tasks"][0]["total_points"] = 3
+        with self.assertRaisesRegex(BUILD_KSP.KSPError, "sum"):
+            BUILD_KSP.validate_input(data)
+
+    def test_scored_descriptors_and_work_forms_are_visible_and_bold(self):
+        from docx import Document
+        for language in ("ru", "kk", "en"):
+            data = self.data()
+            task = data["stages"][0]["tasks"][0]
+            task["descriptor_scores"] = [
+                {"text": "Выбирает проверяемый вопрос", "points": 1},
+                {"text": "Определяет изменяемое условие", "points": 1},
+                {"text": "Определяет наблюдаемый результат", "points": 1},
+            ]
+            task["support"] = "Карточки с вопросами."
+            data["stages"][0]["work_forms"] = ["individual", "pair", "group"]
+            data["stages"][0]["action_work_forms"] = [["individual", "pair", "group"]]
+            stage = BUILD_KSP.validate_input(data)["stages"][0]
+            doc = Document()
+            doc.add_table(rows=1, cols=2)
+            doc.add_table(rows=1, cols=5)
+            BUILD_KSP.fill_stages(doc, {"language": language, "schema_version": "3.0", "stages": [stage]})
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "scores.docx"
+                doc.save(path)
+                row = Document(path).tables[1].rows[1]
+                for form in stage["work_forms"]:
+                    paragraph = next(p for p in row.cells[1].paragraphs if p.text == BUILD_KSP.WORK_FORMS[language][form])
+                    self.assertTrue(all(r.bold for r in paragraph.runs if r.text))
+                heading = next(p for p in row.cells[3].paragraphs if BUILD_KSP.scored_heading(language, 3) in p.text)
+                self.assertTrue(all(r.bold for r in heading.runs if r.text))
+                self.assertEqual(row.cells[3].text.count("— 1;"), 3)
+                support = next(p for p in row.cells[3].paragraphs if p.text.startswith(BUILD_KSP.SUPPORT_LABEL[language]))
+                self.assertTrue(support.runs[0].bold)
+
     def data(self):
         return deepcopy(BUILD_KSP.example(test_fixture=True))
 

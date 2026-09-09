@@ -12,6 +12,8 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts"))
+from lesson_table_policy import contains_framework
 
 
 @dataclass
@@ -106,6 +108,9 @@ def extract_stage_minutes(rows: list[list[str]]) -> list[int]:
 def audit(path: Path, expected_minutes: int, combined: bool) -> list[Finding]:
     findings: list[Finding] = []
     text, rows, paragraphs = read_docx(path)
+    for cells in rows:
+        if len(cells) == 5 and extract_stage_minutes([cells]) and contains_framework(" ".join(cells)):
+            findings.append(Finding("ERROR", "METHODOLOGY_IN_TEACHER_ACTIONS", "Перенесите название и объяснение методики в методическое приложение; в действиях учителя оставьте конкретный приём и вид работы."))
     findings.extend(audit_typography(path))
     lower = text.lower()
 
