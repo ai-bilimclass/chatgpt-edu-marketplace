@@ -133,7 +133,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts"))
 from lesson_table_policy import contains_framework
 from scored_tasks import scoring
 WORK_FORMS = {
-    "ru": {"individual": "Индивидуальная работа", "pair": "Парная работа", "group": "Групповая работа", "whole_class": "Фронтальная работа"},
+    "ru": {"individual": "Индивидуальная работа", "pair": "Парная работа", "group": "Групповая работа", "whole_class": "Работа со всем классом"},
     "kk": {"individual": "Жеке жұмыс", "pair": "Жұптық жұмыс", "group": "Топтық жұмыс", "whole_class": "Ұжымдық жұмыс"},
     "en": {"individual": "Individual work", "pair": "Pair work", "group": "Group work", "whole_class": "Whole-class work"},
 }
